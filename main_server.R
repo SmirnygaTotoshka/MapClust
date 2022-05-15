@@ -1,6 +1,7 @@
 library(leaflet)
 library(xlsx)
 library(ggplot2)
+library(purrr)
 library(plotly)
 library(igraph)
 library(surveillance)
@@ -11,6 +12,8 @@ Main.Server <- function(id) {
             disable("do.clust")
             disable("clearHighlight")
             disable("save_res")
+            hide("first.cases")
+            hide("second.cases")
             ns = session$ns
             row = reactiveVal(0)
             
@@ -19,45 +22,38 @@ Main.Server <- function(id) {
             mc.sim.down = reactiveVal(NULL)
             mc.sim.up = reactiveVal(NULL)
             
+            render.col = reactiveVal(-1546)
+            
             res.dis = reactiveVal(NULL)
             res.clust = reactiveVal(NULL)
+            cols = reactiveValues(
+                first = 1, 
+                second = 1
+            )
            
             click.list <- reactiveVal(NULL)
             proxy = leafletProxy("map")
 
-            map.data = reactiveVal()
-            copy.map = reactiveVal()
+            map.data = reactiveVal(NULL)
+            copy.map = reactiveVal(NULL)
             
                 output$down_crit_reg = renderPlot(
                 {
-                   validate(FALSE,"Launch criteria")
+                   validate(FALSE,"Запустите критерий")
                 })
 
                 output$up_crit_reg = renderPlot(
                 {
-                   validate(FALSE,"Launch criteria")
+                   validate(FALSE,"Запустите критерий")
                 })
                 
                 output$down_stat = renderTable({
-                    validate(FALSE,"Launch criteria")
+                    validate(FALSE,"Запустите критерий")
                 })
                 
                 output$up_stat = renderTable({
-                    validate(FALSE,"Launch criteria")
+                    validate(FALSE,"Запустите критерий")
                 })
-            
-            
-            # observe({
-            #     map.df = rgdal::readOGR(dsn = "~/RWorkspace/ClickMap/Romania", layer = "Romania")
-            #     
-            #     map.df@data$CASES = rpois(length(map.df@data$GID_1),input$ChooseLmbd) #,20)
-            #     m = mean(map.df@data$CASES)
-            #     map.df@data$X = (map.df@data$CASES - m) / sqrt(m)
-            #     map.df@data$P.VALUE = pnorm(map.df@data$X,lower.tail = F)
-            #     #map.df@data$P.VALUE = sapply(map.df@data$P.VALUE, function(x){if(x == 0){x = 0.000001}})
-            #     map.data(map.df)
-            #     copy.map(map.df)
-            # })
             
             volumes = c(Home = "~")
             
@@ -76,64 +72,194 @@ Main.Server <- function(id) {
                 session = session
             )
             
-            observe({
+            search.numeric.columns = reactive({
+                cols$first = 1
+                cols$second = 1
+                first.finded = F
+                for (col in 1:ncol(copy.map()@data)) {
+                    if(is.numeric(copy.map()@data[,col])){
+                        if(first.finded){
+                            cols$second = col
+                            break
+                        }
+                        else{
+                            cols$first = col
+                            first.finded = T
+                        }
+                    } 
+                }
+            })
+            
+            observeEvent(input$ogr_dir,{
                 if (is.integer(input$ogr_dir)) {
-                    cat("No map directory has been selected\n")
+                    cat("No map\n")
                 }
                 else {
                     tryCatch({
                         path = parseDirPath(volumes, input$ogr_dir)
+                        print(paste("Path to map","=",path))
                         layers = strsplit(path, "/")[[1]]
                         layer = layers[length(layers)]
+                        print(paste("Layer","=",layer))
                         map.df = rgdal::readOGR(dsn = path, layer = as.character(layer))
-                        map.df@data$CASES = rpois(length(map.df@data$GID_1), input$ChooseLmbd)
-                        m = mean(map.df@data$CASES)
-                        map.df@data$X = (map.df@data$CASES - m) / sqrt(m)
-                        map.df@data$P.VALUE = pnorm(map.df@data$X,lower.tail = F)
+                        map.df1 = sf::st_shift_longitude(sf::st_as_sf(map.df))
+                        map.df = as(map.df1, "Spatial")
                         map.data(map.df)
                         copy.map(map.df)
+
+                        search.numeric.columns()
+                        print(c(cols$first,cols$second))
+                        updateSelectInput(session = session,inputId = "first",label = "Выберите первый момент", choices = colnames(copy.map()@data),selected = colnames(copy.map()@data)[cols$first])
+                        updateSelectInput(session = session,inputId = "second",label = "Выберите второй момент", choices = colnames(copy.map()@data),selected = colnames(copy.map()@data)[cols$second])
+                        
                     },
                     error = function(e){
                         shinyalert("Error",
-                                   paste("Cannot parse the data, because",e),
+                                   paste("Не могу считать данные, потому что ",e),
                                    type = "error"
                         )
                     })
 
                 }
             })
-
+            
             observe({
                 toggleState("clearHighlight", row() != 0 || (!is.null(res.dis()) || !is.null(res.clust())))
                 toggleState("save_res",!is.null(res.dis()) || !is.null(res.clust()))
                 toggleState("do.clust", !is.null(map.data()) && !is.null(mc.params()))
             })
-        
-              output$map <- renderLeaflet({
-                validate(need(copy.map(),label = "OGR map data"))
-                 
+            
+            
+            observeEvent({input$first
+                  input$second },
+                  ignoreNULL = T,
+                  ignoreInit = T,{
+                      print("-----------------------------------------------------")
+                      print("Select columns")
+                      req(copy.map(),input$first,input$second)
+                      data = copy.map()
+                      cols$first = input$first
+                      cols$second = input$second
+                      print(paste("First",input$first,"Second",input$second))
+                      
+                      req(is.numeric(copy.map()@data[,cols$first]))
+                      req(is.numeric(copy.map()@data[,cols$second]))
+                      first.time = as.numeric(copy.map()@data[,cols$first])
+                      second.time = as.numeric(copy.map()@data[,cols$second])
+                      
+                      print("First time")
+                      print(first.time)
+                      print("Second time")
+                      print(second.time)
+                      
+                      data@data$X = (first.time - second.time) / (sqrt(first.time + second.time))
+                      data@data$P.VALUE = pnorm(data@data$X,lower.tail = F)
+                      
+                      print("X")
+                      print(data@data$X)
+                      print("P-value")
+                      print(data@data$P.VALUE)
+                      
+                      m1 = mean(first.time,na.rm = T)
+                      data@data$X1 = (first.time - m1) / sqrt(m1)
+                      data@data$P.VALUE1 = pnorm(data@data$X1,lower.tail = F)
+                      print("Mean 1")
+                      print(m1)
+                      print("X 1")
+                      print(data@data$X1)
+                      print("P-value 1")
+                      print(data@data$P.VALUE1)
+                      
+                      m2 = mean(second.time,na.rm = T)
+                      data@data$X2 = (second.time - m2) / sqrt(m2)
+                      data@data$P.VALUE2 = pnorm(data@data$X2,lower.tail = F)
+                      print("Mean 2")
+                      print(m2)
+                      print("X 2")
+                      print(data@data$X2)
+                      print("P-value 2")
+                      print(data@data$P.VALUE2)
+                      print("-----------------------------------------------------")
+                      copy.map(data)
+                      render.col(match("P.VALUE", colnames(copy.map()@data))[1])
+                      
+                      updateNumericInput(session = session,inputId = "first.cases",
+                                         label = paste("Значение(1 момент)"),
+                                         min = min(first.time,na.rm = T) - 10 * (max(first.time,na.rm = T) - min(first.time,na.rm = T)),
+                                         max = max(first.time,na.rm = T) + 10 * (max(first.time,na.rm = T) - min(first.time,na.rm = T)),
+                                         value = first.time[row()],step = 0.1
+                      )
+
+                      updateNumericInput(session = session,inputId = "second.cases",
+                                         label = paste("Значение(2 момент)"),
+                                         min = min(second.time,na.rm = T) - 10 * (max(second.time,na.rm = T) - min(second.time,na.rm = T)),
+                                         max = max(second.time,na.rm = T) + 10 * (max(second.time,na.rm = T) - min(second.time,na.rm = T)),
+                                         value = second.time[row()],step = 0.1
+                      )
+                      # withProgress(message = "Rendering...", {
+                      #     proxy %>% clearShapes()  %>%
+                      #         clearControls() %>% addProviderTiles("CartoDB.Positron") %>%
+                      #         addPolygons(
+                      #             data = copy.map(),
+                      #             weight = 1,
+                      #             fillOpacity = 0.25,
+                      #             color = p(copy.map()@data[,render.col()]),
+                      #             layerId = copy.map()@data$GID_1,
+                      #             highlight = highlightOptions(
+                      #                 weight = 5,
+                      #                 color = p(copy.map()@data[,render.col()]),
+                      #                 fillOpacity = 0.7,
+                      #                 bringToFront = TRUE
+                      #             )
+                      #         ) %>%
+                      #         addLegend(pal = p,
+                      #                   title = "P-Value",
+                      #                   values = copy.map()@data[,render.col()])
+                      #     print("Render map! - select columns")
+                      # 
+                      # })
+                  })
+            
+            observeEvent(input$representation,{
+                req(copy.map())
+                if(input$representation == "Difference"){
+                    render.col(match("P.VALUE", colnames(copy.map()@data))[1])
+                }
+                else if(input$representation == "First"){
+                    render.col(match("P.VALUE1", colnames(copy.map()@data))[1])
+                }
+                else{
+                    render.col(match("P.VALUE2", colnames(copy.map()@data))[1])
+                }
+            })
+            
+            output$map <- renderLeaflet({
+                print(paste("Mode",render.col(),class(render.col())))
+                validate(need(copy.map(),message = "Загрузите карту"))
+                  validate(need(copy.map()@data$P.VALUE,message = "Выберите моменты времени")) 
                 withProgress(message = "Rendering...", {
+                    print("Render map! - renderer")
                   leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
                     addPolygons(
                       data = copy.map(),
                       weight = 1,
                       fillOpacity = 0.25,
-                      color = p(copy.map()@data$P.VALUE),
+                      color = p(copy.map()@data[,render.col()]),
                       layerId = copy.map()@data$GID_1,
                       highlight = highlightOptions(
                         weight = 5,
-                        color = p(copy.map()@data$P.VALUE),
+                        color = p(copy.map()@data[,render.col()]),
                         fillOpacity = 0.7,
                         bringToFront = TRUE
                       )
                     ) %>%
                     addLegend(pal = p,
                               title = "P-Value",
-                              values = copy.map()@data$P.VALUE)
+                              values = copy.map()@data[,render.col()])
                 })
               })
               
-              observeEvent(input$mc_res,{
+            observeEvent(input$mc_res,{
                   tryCatch({
                       mc.params(read.xlsx(input$mc_res$datapath,sheetName = "Params"))
                       mc.adj.mat(read.xlsx(input$mc_res$datapath,sheetName = "Adj.Mat",row.names = T,col.names = T))
@@ -147,7 +273,7 @@ Main.Server <- function(id) {
                   },
                   error = function(e){
                       shinyalert("Error", 
-                                 paste("Cannot parse the data, because",e),
+                                 paste("Не могу считать данные, потому что ",e),
                                  type = "error"
                       )    
                       mc.params = reactiveVal(NULL)
@@ -156,14 +282,42 @@ Main.Server <- function(id) {
                       mc.sim.up = reactiveVal(NULL)
                   })
               })
+              
+
+              
         
             observeEvent(input$map_shape_click,
                              ignoreNULL = T,
                              ignoreInit = T,
             {
                 isolate.copy = isolate(copy.map())
+                first.time = as.numeric(isolate.copy@data[,cols$first])
+                second.time = as.numeric(isolate.copy@data[,cols$second])
+                
+                i = which(isolate.copy@data$GID_1 %in% input$map_shape_click)
+                if(is.na(first.time[i]) || is.na(second.time[i]) || 
+                   is.nan(first.time[i]) || is.nan(second.time[i]) ||
+                   is.infinite(first.time[i]) || is.infinite(second.time[i])){
+                    req(input$changeableNA)
+                }
+                req(copy.map()@data[,render.col()])
+                
                 ev <- input$map_shape_click
+                
                 row(which(isolate.copy@data$GID_1 %in% ev$id))
+                
+                # m1 = round(mean(first.time,na.rm = T),2)
+                # sd1 = round(sd(first.time,na.rm = T),2)
+                # m2 = round(mean(second.time,na.rm = T),2)
+                # sd2 = round(sd(second.time,na.rm = T),2)
+                
+                print("-----------------------------------------------------")
+                print("Map click")
+                print(paste("Row =",row(),"Region =",isolate.copy@data$NAME_1[row()]))
+                print(paste("First =",isolate.copy@data[row(),cols$first],"Second =",isolate.copy@data[row(),cols$second]))
+                # print(paste("m1 =",m1,"sd1 =",sd1))
+                # print(paste("m2 =",m2,"sd2 =",sd2))
+                print("-----------------------------------------------------")
                 # If already selected, first remove previous selection
                 if (!is.null(click.list())) {
                      region = isolate.copy[which(isolate.copy@data$GID_1 %in% click.list()), ]
@@ -172,105 +326,92 @@ Main.Server <- function(id) {
                                      data = region,
                                      weight = 1,
                                      fillOpacity = 0.25,
-                                     color = p(region@data$P.VALUE),
+                                     color = p(region@data[,render.col()]),
                                      layerId = region@data$GID_1,
                                      highlight = highlightOptions(
                                        weight = 5,
-                                       color = p(region@data$P.VALUE),
+                                       color = p(region@data[,render.col()]),
                                        fillOpacity = 0.7,
                                        bringToFront = TRUE
                                      )
                                )
+                     print("Render map!-map click1")
                }
                else{
-                    insertUI(selector = paste0("#",ns("ChooseLmbd")),
-                             where = "afterEnd",
-                             ui = sliderInput(ns("changer"),
-                                              paste("Change value for",isolate.copy@data$NAME_0[row()],isolate.copy@data$NAME_1[row()]),
-                                              min = 0,
-                                              max = 3 * input$ChooseLmbd,
-                                              value = isolate.copy@data$CASES[row()]
-                                            )
-                             )
-                     insertUI(selector = paste0("#",ns("changer")),
-                              where = "afterEnd",
-                              ui = textOutput(ns("pvalue")))
+                   show("first.cases")
+                   show("second.cases")
                 }
-
                 click.list(ev$id)  # we only store the last click now!
-                updateSelectInput(session = session,inputId = "map", selected = ev$id)
-                updateSliderInput(session = session,inputId = "changer",
-                                  label = paste("Change value for", isolate.copy@data$NAME_0[row()],isolate.copy@data$NAME_1[row()]),
-                                  min = 0,
-                                  max = 3 * input$ChooseLmbd,
-                                  value = isolate.copy@data$CASES[row()]
-                               )#TODO doesnt change when region change
-                 output$pvalue = renderText({
-                                 paste(
-                                   "P-value for",
-                                   copy.map()@data$NAME_0[row()],
-                                   copy.map()@data$NAME_1[row()],
-                                   copy.map()@data$GID_1[row()],
-                                   "=",
-                                   copy.map()@data$P.VALUE[row()]
-                                 )
-               })
+               # updateSelectInput(session = session,inputId = "map", selected = ev$id)
+                updateNumericInput(session = session,inputId = "first.cases",
+                                  label = paste("Значение(1 момент)"),
+                                  min = min(first.time,na.rm = T) - 10 * (max(first.time,na.rm = T) - min(first.time,na.rm = T)),
+                                  max = max(first.time,na.rm = T) + 10 * (max(first.time,na.rm = T) - min(first.time,na.rm = T)),
+                                  value = first.time[row()],step = 0.1
+                )
+                
+                updateNumericInput(session = session,inputId = "second.cases",
+                                  label = paste("Значение(2 момент)"),
+                                  min = min(second.time,na.rm = T) - 10 * (max(second.time,na.rm = T) - min(second.time,na.rm = T)),
+                                  max = max(second.time,na.rm = T) + 10 * (max(second.time,na.rm = T) - min(second.time,na.rm = T)),
+                                  value = second.time[row()],step = 0.1
+                )
                region = isolate.copy[row(), ]
                proxy %>% addPolylines(
                                  data = region,
                                  layerId = region@data$GID_1,
-                                 color = p(region@data$P.VALUE),
+                                 color = p(region@data[,render.col()]),
                                  weight = 5,
                                  opacity = 1
                                )
+               print("Render map! - map.click2")
 
             })
             
-              observeEvent(input$changer,ignoreInit = T,ignoreNULL = T,
-              {
-                 req(input$changer)
-                 
-                 buf = copy.map()
-                 buf@data$CASES[row()] = input$changer
-                 m = mean(buf@data$CASES)
-                 buf@data$X = (buf@data$CASES - m) / sqrt(m)
-                 buf@data$P.VALUE = pnorm(buf@data$X,lower.tail = F)
-                 copy.map(buf)
-                 
-                 region = buf[row(), ]
-                 proxy %>%
-                            addPolygons(
-                                 data = region,
-                                 weight = 1,
-                                 fillOpacity = 0.25,
-                                 color = p(region@data$P.VALUE),
-                                 layerId = region@data$GID_1,
-                                 highlight = highlightOptions(
-                                   weight = 5,
-                                   color = p(region@data$P.VALUE),
-                                   fillOpacity = 0.7,
-                                   bringToFront = TRUE
-                                 )
-                               ) %>%
-                            addPolylines(
-                                 data = region,
-                                 layerId = region@data$GID_1,
-                                 color = p(region@data$P.VALUE),
-                                 weight = 5,
-                                 opacity = 1
-                               )
+            output$dif.print = renderText({
+                req(row() > 0)
+                paste(
+                    "P-value для",
+                    copy.map()@data$NAME_0[row()],
+                    copy.map()@data$NAME_1[row()],
+                    copy.map()@data$GID_1[row()],
+                    "=",
+                    copy.map()@data$P.VALUE[row()]
+                )
+            })
+            output$first.pvalue = renderText({
+                req(row() > 0)
+                paste(
+                    "P-value(1 момент)",
+                    "=",
+                    copy.map()@data$P.VALUE1[row()]
+                )    
+                
+            })
+            output$second.pvalue = renderText({
+                req(row() > 0)
+                paste(
+                    "P-value(2 момент)",
+                    "=",
+                    copy.map()@data$P.VALUE2[row()]
+                )    
             })
               
             observeEvent(input$do.clust,
             {
+                print("-----------------------------------------------------")
+                print("Clustering checks")
+                print("Identical names?")
                 print(identical(sort(as.vector(copy.map()@data$GID_1)),sort(as.vector(row.names(mc.adj.mat())))))
+                print("GID_1")
                 print(sort(as.vector(copy.map()@data$GID_1)))
+                print("Adj.Mat")
                 print(sort(as.vector(row.names(mc.adj.mat()))))
+                print("-----------------------------------------------------")
                 if(!identical(sort(as.vector(copy.map()@data$GID_1)),sort(as.vector(row.names(mc.adj.mat()))))){
-                    shinyalert("Error","Loaded parameters are not for this map.", type = "error")
+                    shinyalert("Error","Результат симуляции НЕ для этой карты", type = "error")
                     return()
                 }
-                lmbd = input$ChooseLmbd
                 #0 - no discharges/clusters
                 #1 - has discharges/clusters but they are not significant
                 #2 - has significant discharges/clusters
@@ -278,8 +419,11 @@ Main.Server <- function(id) {
                 has.clusters = 0
                 p.down = isolate(mc.params())[1,"Probabilities"]
                 p.up = isolate(mc.params())[2,"Probabilities"]
+                print("-----------------------------------------------------")
+                print(paste("Probability limits = [",p.down,";",p.up,"]"))
                 if(p.down > 0 && p.down < 1)
                 {
+                    print("Search clusters")
                     sim.down = as.data.frame(isolate(mc.sim.down()))
                     adj.mat = as.matrix(isolate(mc.adj.mat()))
                     a = input$alpha
@@ -291,6 +435,7 @@ Main.Server <- function(id) {
                     a2 = sim.down$PMaxNGreaterNi[ind]
                     a1 = a - a2
                     n.crit = sim.down$Size[ind]
+                    print(paste("Alpha = ",a1,"+",a2,";","N.crit =",n.crit))
                     a.uni = a1 / (n.crit - 1)
                     f.cr = function(s.cr,size,e.n){return(pchisq(s.cr,df = 2 * size) - (1 - a.uni / e.n))}
                     tol = 0.0001
@@ -316,64 +461,66 @@ Main.Server <- function(id) {
                                                                     s.cr = 0))
     
                     s.n.down = function(x, p, data){
-                        print(data@data$P.VALUE[which(data@data$GID_1 %in% x)])
-                        return(-2 * sum(log(data@data$P.VALUE[which(data@data$GID_1 %in% x)] / p)))
+                        print(data@data[which(data@data$GID_1 %in% x),render.col()])
+                        return(-2 * sum(log(data@data[which(data@data$GID_1 %in% x),render.col()] / p)))
                     }
     
                     buf = isolate(copy.map())
-                    buf@data$CRIT = ifelse(buf@data$P.VALUE<=p.down,1,0)
-                    print("meow")
+                    buf@data$CRIT = ifelse(buf@data[,render.col()]<=p.down,1,0)
                     select = which(buf@data$CRIT == 1,arr.ind = T)
                     if(length(select) != 0){
                         graph <- graph.adjacency(adj.mat[select,select])
                         comps <- components(graph)
-                        print("meow")
                         clusters = igraph::groups(comps)
                         print(clusters)
                         if(length(clusters) > 0){
-                            has.discharges = 1
-                            print("meow")
+                            has.clusters = 1
                             s = sapply(clusters,s.n.down,p = p.down, data = buf)
                             sizes = sapply(clusters, length)
-                            print("meow")
                             cls = as.data.frame(table(sizes))
-                            data.discharges = data.frame(ID = names(s),N = sizes,S = s)
-                            #names(clusters) = data.discharges$ID
-                            print("Data clust")
-                            print(data.discharges)
-                            for (j in 1:nrow(data.discharges)) {
-                                data.discharges$S.CR[j] = sim.down[sim.down$Size == data.discharges$N[j],"s.cr"]
-                                data.discharges$Label[j] = paste(clusters[[as.character(data.discharges$ID[j])]],collapse = "; ")
+                            data.clusters = data.frame(ID = names(s),N = sizes,S = s)
+                            #names(clusters) = data.clusters$ID
+                            
+                            for (j in 1:nrow(data.clusters)) {
+                                nearest = which.min(abs(sim.down$Size - data.clusters$N[j]))
+                                data.clusters$S.CR[j] = sim.down[nearest,"s.cr"]
+                                data.clusters$Label[j] = paste(clusters[[as.character(data.clusters$ID[j])]],collapse = "; ")
+                                data.clusters$Names[j] = paste(buf@data$NAME_1[which(buf@data$GID_1 %in% clusters[[as.character(data.clusters$ID[j])]])],collapse = "; ")
                             }
-                            signif.dis = data.discharges[data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.CR,]
-                            print(signif.dis)
-                            if(nrow(signif.dis) > 0){
-                                has.discharges = 2
-                                #colours = cluster.color(nrow(signif.dis))
-                                for (i in signif.dis$ID) {
+                            print("Data clusters")
+                            print(data.clusters)
+                            signif.clust = data.clusters[data.clusters$N >= n.crit | data.clusters$S >= data.clusters$S.CR,]
+                            print("Significant clusters")
+                            print(signif.clust)
+                            if(nrow(signif.clust) > 0){
+                                has.clusters = 2
+                                #colours = cluster.color(nrow(signif.clust))
+                                for (i in signif.clust$ID) {
                                     region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
-                                    print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                                    print("Region data")
+                                    #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                     print(region@data)
-                                    union.dis = surveillance::unionSpatialPolygons(region)
+                                    union.clust = surveillance::unionSpatialPolygons(region)
                                     proxy %>%
                                         addPolylines(
-                                                data = union.dis,
-                                                layerId = paste0("discharges",i),
+                                                data = union.clust,
+                                                layerId = paste0("clusters",i),
                                                 color = "blue",
                                                 weight = 5,
                                                 opacity = 1
                                             )
                                     }
                             }
-                            res.dis(data.discharges)
+                            res.clust(data.clusters)
                             mc.sim.down(sim.down)
                             output$down_crit_reg = renderPlotly(
                             {
-                                validate(need(sim.down$s.cr,"Build critical region"))
+                                validate(need(sim.down$s.cr,"Постройте критическую область"))
                                 sim.down = sim.down[order(sim.down$Size),]
-                                fig = plot_ly(sim.down, x = ~Size, y = ~s.cr,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Critical region") %>%
-                                        add_trace(data = data.discharges,x = ~N,y = ~S, name = 'All', mode = 'markers',color = I("green"), size = 3, text = ~Label)%>%
-                                    add_trace(data = signif.dis,x = ~N,y = ~S, name = 'Significant', mode = 'markers',color = I("blue"), size = 3, text = ~Label)
+                                fig = plot_ly(sim.down, x = ~Size, y = ~s.cr,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Критическая область") %>%
+                                        add_trace(data = data.clusters,x = ~N,y = ~S, name = 'Все', mode = 'markers',color = I("green"), size = 3, text = ~Label)%>%
+                                    add_trace(data = signif.clust,x = ~N,y = ~S, name = 'Значимые', mode = 'markers',color = I("blue"), size = 3, text = ~Label)%>%
+                                    layout(xaxis = list(title="Размер"),yaxis = list(title="Статистика"),title="Кластеры")
                                 fig
                                     # ggplot(sim.down) + geom_line(aes(x = Size, y = s.cr)) +
                                     #     geom_point(data = data.discharges,mapping = aes(x = N, y = S),color = "green",size = 3) +
@@ -381,16 +528,16 @@ Main.Server <- function(id) {
     
                             })
                             output$down_stat = renderTable({
-                                    data.discharges
+                                data.clusters
                                 },digits = 4)
                             }
-                        }
                     }
-                    #TODO
-                    #Plots make plotly
+                    print("-----------------------------------------------------")
+                    }
 
                     if(p.up > 0 && p.up < 1)
                     {
+                        print("Search discharges")
                         sim.up = as.data.frame(isolate(mc.sim.up()))
                         adj.mat = as.matrix(isolate(mc.adj.mat()))
                         a = input$alpha
@@ -402,6 +549,7 @@ Main.Server <- function(id) {
                         a2 = sim.up$PMaxNGreaterNi[ind]
                         a1 = a - a2
                         n.crit = sim.up$Size[ind]
+                        print(paste("Alpha = ",a1,"+",a2,";","N.crit =",n.crit))
                         a.uni = a1 / (n.crit - 1)
                         f.cr = function(s.cr,size,e.n){return(pchisq(s.cr,df = 2 * size) - (1 - a.uni / e.n))} 
                         tol = 0.0001
@@ -427,17 +575,16 @@ Main.Server <- function(id) {
                                                                         s.cr = 0))
                         output$up_crit_reg = renderPlot(
                             {
-                                validate(need(sim.up$s.cr,"Build critical region"))
+                                validate(need(sim.up$s.cr,"Постройте критическую область"))
                             })
                         
                         s.n.up = function(x, p, data){
-                            print(data@data$P.VALUE[which(data@data$GID_1 %in% x)])
-                            return(-2 * sum((log((1 - data@data$P.VALUE[which(data@data$GID_1 %in% x)]) / (1 - p)))))
+                            print(data@data[which(data@data$GID_1 %in% x),render.col()])
+                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x),render.col()]) / (1 - p)))))
                         }
                         
                         buf = isolate(copy.map())
-                        buf@data$CRIT = ifelse(buf@data$P.VALUE>=p.up,1,0)
-                        print("meow")
+                        buf@data$CRIT = ifelse(buf@data[,render.col()]>=p.up,1,0)
                         select = which(buf@data$CRIT == 1,arr.ind = T)
                         if(length(select) != 0){
                             
@@ -446,29 +593,30 @@ Main.Server <- function(id) {
                             clusters = igraph::groups(comps)
                             print(clusters)
                             if(length(clusters) > 0){
-                                print("meow")
-                                has.clusters = 1
+                                has.discharges = 1
                                 s = sapply(clusters,s.n.up,p = p.up, data = buf)
                                 sizes = sapply(clusters, length)
-                                print("meow")
                                 cls = as.data.frame(table(sizes))
-                                data.clust = data.frame(ID = names(s),N = sizes,S = s)
-                                #names(clusters) = data.clust$ID
-                                print("Data clust")
-                                print(data.clust)
-                                for (j in 1:nrow(data.clust)) {
-                                    data.clust$S.CR[j] = sim.up[sim.up$Size == data.clust$N[j],"s.cr"]
-                                    data.clust$Label[j] = paste(clusters[[as.character(data.clust$ID[j])]],collapse = "; ")
+                                data.discharges = data.frame(ID = names(s),N = sizes,S = s)
+                                for (j in 1:nrow(data.discharges)) {
+                                    nearest = which.min(abs(sim.up$Size - data.discharges$N[j]))
+                                    data.discharges$S.CR[j] = sim.up[nearest,"s.cr"]
+                                    data.discharges$Label[j] = paste(clusters[[as.character(data.discharges$ID[j])]],collapse = "; ")
+                                    data.discharges$Names[j] = paste(buf@data$NAME_1[which(buf@data$GID_1 %in% clusters[[as.character(data.clusters$ID[j])]])],collapse = "; ")
+                                    
                                 }
-                                signif.clust = data.clust[data.clust$N >= n.crit | data.clust$S >= data.clust$S.CR,]
-                                print(signif.clust)
-                                if(nrow(signif.clust) > 0){
-                                    has.clusters = 2
-                                    #colours = cluster.color(nrow(signif.clust))
-                                    for (i in signif.clust$ID) {
+                                print("Data discharges")
+                                print(data.discharges)
+                                signif.dis = data.discharges[data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.CR,]
+                                print("Significant discharges")
+                                print(signif.dis)
+                                if(nrow(signif.dis) > 0){
+                                    has.discharges = 2
+                                    #colours = cluster.color(nrow(signif.dis))
+                                    for (i in signif.dis$ID) {
                                         region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
-                                        print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
-                                        #sf.cl = sf::st_as_sf()
+                                        print("Region data")
+                                        #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                         print(region@data)
                                         union = surveillance::unionSpatialPolygons(region)
                                         proxy %>%
@@ -482,15 +630,16 @@ Main.Server <- function(id) {
                                     }
                                 }
                                 
-                                res.clust(data.clust)
+                                res.dis(data.discharges)
                                 mc.sim.up(sim.up)
                                 output$up_crit_reg = renderPlotly(
                                     {
-                                        validate(need(sim.up$s.cr,"Build critical region"))
+                                        validate(need(sim.up$s.cr,"Постройте критическую область"))
                                         sim.up = sim.up[order(sim.up$Size),]
-                                        fig = plot_ly(sim.up, x = ~Size, y = ~s.cr,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Critical region") %>%
-                                            add_trace(data = data.clust,x = ~N,y = ~S, name = 'All', mode = 'markers',color = I("red"), size = 3, text = ~Label)%>%
-                                            add_trace(data = signif.clust,x = ~N,y = ~S, name = 'Significant', mode = 'markers',color = I("black"), size = 3, text = ~Label)
+                                        fig = plot_ly(sim.up, x = ~Size, y = ~s.cr,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Критическая область") %>%
+                                            add_trace(data = data.discharges,x = ~N,y = ~S, name = 'All', mode = 'markers',color = I("red"), size = 3, text = ~Label)%>%
+                                            add_trace(data = signif.dis,x = ~N,y = ~S, name = 'Significant', mode = 'markers',color = I("black"), size = 3, text = ~Label)%>%
+                                            layout(xaxis = list(title="Размер"),yaxis = list(title="Статистика"),title="Разряжения")
                                         fig
                                         # ggplot(sim.up) + geom_line(aes(x = Size, y = s.cr)) +
                                         #     geom_point(data = data.clust,mapping = aes(x = N, y = S),color = "yellow",size = 3) + 
@@ -498,19 +647,20 @@ Main.Server <- function(id) {
                                         
                                     })
                                 output$up_stat = renderTable({
-                                    data.clust
+                                    data.discharges
                                 },digits = 4)
+                                print("-----------------------------------------------------")
                             }
                         }
                     }
                     message = ""
                     if(has.discharges == 0 && has.clusters == 0){
-                        message = "Discharges and clusters isn`t found."
+                        message = "Разряжения и кластеры не найдены."
                     }
                     else if(has.discharges == 1 || has.clusters == 1){
-                        insertion = ifelse(has.discharges == 1 && has.clusters == 1, " Discharges and clusters",
-                                           ifelse(has.discharges == 1, "Discharges", "Clusters"))
-                        message = paste(insertion,"has found, but they are not significant.")
+                        insertion = ifelse(has.discharges == 1 && has.clusters == 1, "Разряжения и кластеры",
+                                           ifelse(has.discharges == 1, "Разряжения", "Кластеры"))
+                        message = paste(insertion,"найдены, но статистически не значимы")
                     }
                     if(has.discharges != 2 && has.clusters != 2){
                         shinyalert("Result", 
@@ -521,36 +671,127 @@ Main.Server <- function(id) {
                     enable("save_res")
             })
             
+            observeEvent({input$first.cases
+                        input$second.cases},ignoreInit = T,ignoreNULL = T,
+                         {
+                             
+                             req(copy.map(),input$first,input$second)
+                             buf = copy.map()
+                             req(is.numeric(buf@data[,cols$first]))
+                             req(is.numeric(buf@data[,cols$second]))
+                             
+                             print(paste("First =",buf@data[row(),cols$first]))
+                             print(paste("Second =",buf@data[row(),cols$second]))
+                             buf@data[row(),cols$first] = input$first.cases
+                             buf@data[row(),cols$second] = input$second.cases
+                             print(paste("First =",buf@data[row(),cols$first]))
+                             print(paste("Second =",buf@data[row(),cols$second]))
+                             
+                             first.time = as.numeric(buf@data[,cols$first])
+                             second.time = as.numeric(buf@data[,cols$second])
+                             buf@data$X = (first.time - second.time) / (sqrt(first.time + second.time))
+                             buf@data$P.VALUE = pnorm(buf@data$X,lower.tail = F)
+                             
+                             m1 = mean(buf@data[,cols$first],na.rm = T)
+                             buf@data$X1 = (buf@data[,cols$first] - m1) / sqrt(m1)
+                             buf@data$P.VALUE1 = pnorm(buf@data$X1,lower.tail = F)
+                             
+                             m2 = mean(buf@data[,cols$second],na.rm = T)
+                             buf@data$X2 = (buf@data[,cols$second] - m2) / sqrt(m2)
+                             buf@data$P.VALUE2 = pnorm(buf@data$X2,lower.tail = F)
+                             
+                             print("-----------------------------------------------------")
+                             print("Change cases")
+                             print(paste("Row =",row(),"Region =",buf@data$NAME_1[row()]))
+                             print(paste("First =",buf@data[row(),cols$first]))
+                             print(paste("Second =",buf@data[row(),cols$second]))
+                             print("X")
+                             print(buf@data$X)
+                             print("P-value")
+                             print(buf@data$P.VALUE)
+                             print("Mean 1")
+                             print(m1)
+                             print("X 1")
+                             print(buf@data$X1)
+                             print("P-value 1")
+                             print(buf@data$P.VALUE1)
+                             print("Mean 2")
+                             print(m2)
+                             print("X 2")
+                             print(buf@data$X2)
+                             print("P-value 2")
+                             print(buf@data$P.VALUE2)
+                             print("-----------------------------------------------------")
+                             
+                             copy.map(buf)
+                             region = buf[row(), ]
+                             
+                             # proxy %>%
+                             #     addPolygons(
+                             #         data = region,
+                             #         weight = 1,
+                             #         fillOpacity = 0.25,
+                             #         color = p(region@data[,render.col()]),
+                             #         layerId = region@data$GID_1,
+                             #         highlight = highlightOptions(
+                             #             weight = 5,
+                             #             color = p(region@data[,render.col()]),
+                             #             fillOpacity = 0.7,
+                             #             bringToFront = TRUE
+                             #         )
+                             #     ) %>%
+                             #     addPolylines(
+                             #         data = region,
+                             #         layerId = region@data$GID_1,
+                             #         color = p(region@data[,render.col()]),
+                             #         weight = 5,
+                             #         opacity = 1
+                             #     )
+                             # print("Render map! - change cases")
+                         })
+            
+            
             #TODO
-            observeEvent({input$clearHighlight
-                            input$ChooseLmbd
-                        }, ignoreInit = T,
+            observeEvent(input$clearHighlight, ignoreInit = T,
             {
                 if(row() != 0){
-                      removeUI(selector = paste0("div:has(> #",ns("changer"),")"))
-                      removeUI(selector = paste0("div:has(> #",ns("pvalue"),")"))
+                    hide("first.cases")
+                    hide("second.cases")
                 }
                 
                 output$down_crit_reg = renderPlot(
                     {
-                        validate(FALSE,"Launch criteria")
+                        validate(FALSE,"Запустите критерий")
                     })
                 
                 output$up_crit_reg = renderPlot(
                     {
-                        validate(FALSE,"Launch criteria")
+                        validate(FALSE,"Запустите критерий")
                     })
                 
                 output$down_stat = renderTable({
-                    validate(FALSE,"Launch criteria")
+                    validate(FALSE,"Запустите критерий")
                 })
                 
                 output$up_stat = renderTable({
-                    validate(FALSE,"Launch criteria")
+                    validate(FALSE,"Запустите критерий")
                 })
                 row(0)
                 click.list(NULL)
                 copy.map(map.data())
+                print("clear and calculate")
+                req(copy.map(),input$first,input$second)
+                data = copy.map()
+                print(c(input$first,input$second))
+                req(is.numeric(copy.map()@data[,cols$first]))
+                req(is.numeric(copy.map()@data[,cols$second]))
+                first.time = as.numeric(copy.map()@data[,cols$first])
+                second.time = as.numeric(copy.map()@data[,cols$second])
+                print(c(first.time,second.time))
+                data@data$X = (first.time - second.time) / (sqrt(first.time + second.time))
+                data@data$P.VALUE = pnorm(data@data$X,lower.tail = F)
+                copy.map(data)
+                print(copy.map()@data[,render.col()])
                 withProgress(message = "Rendering...", {
                       proxy %>% clearShapes()  %>%
                                 clearControls() %>% 
@@ -559,23 +800,25 @@ Main.Server <- function(id) {
                             data = copy.map(),
                             weight = 1,
                             fillOpacity = 0.25,
-                            color = p(copy.map()@data$P.VALUE),
+                            color = p(copy.map()@data[,render.col()]),
                             layerId = copy.map()@data$GID_1,
                             highlight = highlightOptions(
                                 weight = 5,
-                                color = p(copy.map()@data$P.VALUE),
+                                color = p(copy.map()@data[,render.col()]),
                                 fillOpacity = 0.7,
                                 bringToFront = TRUE
                             )
                         ) %>%
                         addLegend(pal = p,
                                   title = "P-Value",
-                                  values = copy.map()@data$P.VALUE)
+                                  values = copy.map()@data[,render.col()])
+                    print("Render map! - clear")
                 })
                 res.dis(NULL)
                 res.clust(NULL)
             })
-            observe({
+            
+            observeEvent(input$save_res,{
                 if (is.integer(input$save_res)) {
                     cat("No file has been selected (shinyResSave)\n")
                 } 

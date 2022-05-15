@@ -1,7 +1,7 @@
 library(shiny)
 library(rgdal)
 library(shinyjs)
-library(ggplot2)
+library(plotly)
 library(shinyFiles)
 library(igraph)
 library(shinyalert)
@@ -60,7 +60,7 @@ MonteCarlo.Server <- function(id) {
                 layers = strsplit(sim.data$path, "/")[[1]]
                 layer = layers[length(layers)]
                 success.parse = F
-                withProgress(message = "Read the data", {
+                withProgress(message = "Чтение данных", {
                     incProgress(0.5)
                     sim.data$data = tryCatch(expr = {
                         polygons = readOGR(dsn = sim.data$path, layer = as.character(layer))   
@@ -69,7 +69,7 @@ MonteCarlo.Server <- function(id) {
                     },
                     error = function(e){
                         shinyalert("Error", 
-                               paste("Cannot parse the data, because",e),
+                               paste("Не могу считать данные, потому что",e),
                                type = "error"
                         )
                         NULL
@@ -86,7 +86,7 @@ MonteCarlo.Server <- function(id) {
                     if ((p.up == 0 || p.up == 1) && (p.down == 1 || p.down == 0))
                     {
                         shinyalert("Warning", 
-                                   "Choose correct thresholds!",
+                                   "Выберите корректные пределы!",
                                    type = "warning"
                         )
                     }
@@ -101,10 +101,10 @@ MonteCarlo.Server <- function(id) {
                         disable("ogr_dir")
                         cat("Start simulation\n")
                         
-                        withProgress(message = "Simulation", {
+                        withProgress(message = "Симуляция", {
                             histogram = data.frame(Size = 0,SumProbabilities = 0, MeanProbabilities = 0,ExpectedNn = 0,PMaxNGreaterNi = 0)
                             max.clust.size = data.frame()
-                            incProgress(0.2,message = "Build adjacency matrix")
+                            incProgress(0.2,message = "Построение матрицы смежности")
                             print(sim.data$data)
                             adjacencyMatrix = poly2adjmat(sim.data$data, queen = queen, zero.policy = T,row.names = sim.data$data@data$GID_1)
                             result$adj.mat = adjacencyMatrix
@@ -165,7 +165,7 @@ MonteCarlo.Server <- function(id) {
                                 
                                   incProgress(
                                     amount = 1 / 2*n.iter+0.01,
-                                    message = paste("Down simulation. Iteration", i, "from", n.iter)
+                                    message = paste("Нижняя граница. Итерация", i, "из", n.iter)
                                   )
                                 }
                                 #PDF of cluster size
@@ -238,7 +238,7 @@ MonteCarlo.Server <- function(id) {
                                     
                                     incProgress(
                                         amount = 1 / 2*n.iter+0.01,
-                                        message = paste("Up simulation. Iteration", i, "from", n.iter)
+                                        message = paste("Верхняя граница. Итерация", i, "из", n.iter)
                                     )
                                 }
                                 #PDF of cluster size
@@ -257,7 +257,7 @@ MonteCarlo.Server <- function(id) {
             }
             else{
                     shinyalert("Warning",
-                               "Cannot parse the data. It is NULL.",
+                               "Не могу считать данные. NULL.",
                                type = 'warning')
                 print(sim.data$data)
             }
@@ -276,45 +276,57 @@ MonteCarlo.Server <- function(id) {
                     }
               })
               
-              output$down.PDF = renderPlot({
-                  validate(need(!is.null(sim.data$data),label = "Data"))
-                  validate(need(result$sim.down,"Uncorrect threshold for discharging simulation"))
-                  ggplot(result$sim.down) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
-                      labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
+              output$down.PDF = renderPlotly({
+                  validate(need(!is.null(sim.data$data),message = "Нет данных."))
+                  validate(need(result$sim.down,"Некорректный порог для поиска кластеров"))
+                  # ggplot(result$sim.down) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
+                  #     labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
+                  fig = plot_ly(result$sim.down, x = ~Size, y = ~MeanProbabilities,type = 'bar',color = I("blue"), alpha = 0.85) %>%
+                      layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение размеров кластеров")
+                  fig
               })
               
-              output$up.PDF = renderPlot({
-                  validate(need(!is.null(sim.data$data),label = "Data"))
-                  validate(need(result$sim.up,"Uncorrect threshold for clustering simulation"))
-                  ggplot(result$sim.up) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
-                      labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
-              })
+              output$up.PDF = renderPlotly({
+                  validate(need(!is.null(sim.data$data),message = "Нет данных."))
+                  validate(need(result$sim.up,"Некорректный порог для поиска разряжений"))
+              #     ggplot(result$sim.up) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
+              #         labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
+                  fig = plot_ly(result$sim.up, x = ~Size, y = ~MeanProbabilities,type = 'bar',color = I("blue"), alpha = 0.85) %>%
+                        layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение размеров разряжений")
+                  fig
+            })
 
 
               output$down.table = renderTable({
-                  validate(need(!is.null(sim.data$data),label = "Data"))
-                  validate(need(result$sim.down,"Uncorrect threshold for discharging simulation"))
+                  validate(need(!is.null(sim.data$data),message = "Нет данных."))
+                  validate(need(result$sim.down,"Некорректный порог для поиска кластеров"))
                   result$sim.up
               },digits = 4)
               
               output$up.table = renderTable({
-                  validate(need(!is.null(sim.data$data),label = "Data"))
-                  validate(need(result$sim.up,"Uncorrect threshold for clustering simulation"))
+                  validate(need(!is.null(sim.data$data),message = "Нет данных."))
+                  validate(need(result$sim.up,"Некорректный порог для поиска разряжений"))
                   result$sim.up
               },digits = 4)
               
-              output$down.alpha2 = renderPlot({
-                  validate(need(!is.null(sim.data$data),label = "Data"))
-                  validate(need(result$sim.down,"Uncorrect threshold for discharging simulation"))
-                  ggplot(result$sim.down) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
-                      labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
+              output$down.alpha2 = renderPlotly({
+                  validate(need(!is.null(sim.data$data),message = "Нет данных."))
+                  validate(need(result$sim.down,"Некорректный порог для поиска кластеров"))
+                  # ggplot(result$sim.down) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
+                  #     labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
+                  fig = plot_ly(result$sim.down, x = ~Size, y = ~PMaxNGreaterNi,type = 'bar',color = I("blue"), alpha = 0.85) %>%
+                      layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение максимального размера разряжений")
+                  fig
               })
               
-              output$up.alpha2 = renderPlot({
-                  validate(need(!is.null(sim.data$data),label = "Data"))
-                  validate(need(result$sim.up,message = "Uncorrect threshold for clustering simulation"))
-                  ggplot(result$sim.up) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
-                      labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
+              output$up.alpha2 = renderPlotly({
+                  validate(need(!is.null(sim.data$data),message = "Нет данных."))
+                  validate(need(result$sim.up,message = "Некорректный порог для поиска разряжений"))
+                  # ggplot(result$sim.up) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
+                  #     labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
+                  fig = plot_ly(result$sim.up, x = ~Size, y = ~PMaxNGreaterNi,type = 'bar',color = I("blue"), alpha = 0.85) %>%
+                      layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение максимального размера кластеров")
+                  fig
               })
         }
     )

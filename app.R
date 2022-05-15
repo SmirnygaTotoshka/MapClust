@@ -17,6 +17,8 @@ source("main_server.R")
 ui <- fluidPage(
     useShinyjs(),
     tabsetPanel(
+        #rmarkdown::render("intro_rus.Rmd", html_document(toc = TRUE,toc_float = T))
+        tabPanel("Введение", fluidPage(includeHTML("intro_rus.html"))),
         MonteCarlo.UI(monte.carlo.id),
         Main.UI(main.id)
     )
@@ -24,6 +26,7 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+    #output$intro<-renderUI({includeMarkdown("Intro_rus.html")})
     MonteCarlo.Server(monte.carlo.id)
     Main.Server(main.id)
 }
