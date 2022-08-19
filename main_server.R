@@ -9,23 +9,17 @@ Main.Server <- function(id) {
     moduleServer(
         id,
         function(input, output, session) {
-            disable("do.clust")
-            disable("clearHighlight")
-            disable("save_res")
-            hide("first.cases")
-            hide("second.cases")
-            ns = session$ns
             row = reactiveVal(0)
+            render.col = reactiveVal(0)
             
             mc.params = reactiveVal(NULL)
             mc.adj.mat = reactiveVal(NULL)
             mc.sim.down = reactiveVal(NULL)
             mc.sim.up = reactiveVal(NULL)
             
-            render.col = reactiveVal(-1546)
-            
             res.dis = reactiveVal(NULL)
             res.clust = reactiveVal(NULL)
+            
             cols = reactiveValues(
                 first = 1, 
                 second = 1
@@ -36,41 +30,41 @@ Main.Server <- function(id) {
 
             map.data = reactiveVal(NULL)
             copy.map = reactiveVal(NULL)
+                # 
+                # output$down_crit_reg = renderPlot(
+                # {
+                #    validate(FALSE,"Запустите критерий")
+                # })
+                # 
+                # output$up_crit_reg = renderPlot(
+                # {
+                #    validate(FALSE,"Запустите критерий")
+                # })
+                # 
+                # output$down_stat = renderTable({
+                #     validate(FALSE,"Запустите критерий")
+                # })
+                # 
+                # output$up_stat = renderTable({
+                #     validate(FALSE,"Запустите критерий")
+                # })
             
-                output$down_crit_reg = renderPlot(
-                {
-                   validate(FALSE,"Запустите критерий")
-                })
-
-                output$up_crit_reg = renderPlot(
-                {
-                   validate(FALSE,"Запустите критерий")
-                })
+                volumes = c(Home = "~")
                 
-                output$down_stat = renderTable({
-                    validate(FALSE,"Запустите критерий")
-                })
-                
-                output$up_stat = renderTable({
-                    validate(FALSE,"Запустите критерий")
-                })
-            
-            volumes = c(Home = "~")
-            
-            shinyDirChoose(
-                input,
-                'ogr_dir',
-                roots = volumes,
-                allowDirCreate = FALSE,
-                session = session
-            )
-            shinyFileSave(
-                input,
-                'save_res',
-                roots = volumes,
-                allowDirCreate = T,
-                session = session
-            )
+                shinyDirChoose(
+                    input,
+                    'ogr_dir',
+                    roots = volumes,
+                    allowDirCreate = FALSE,
+                    session = session
+                )
+                shinyFileSave(
+                    input,
+                    'save_res',
+                    roots = volumes,
+                    allowDirCreate = T,
+                    session = session
+                )
             
             search.numeric.columns = reactive({
                 cols$first = 1

@@ -17,25 +17,25 @@ Main.UI = function(id, label = "Критерий"){
                          checkboxInput(crit("changeableNA"),"Можно ли изменять NA значения?",FALSE),
                          fluidRow(
                              column(6, wellPanel(selectInput(crit("first"),"Выберите первый момент", choices = NULL),
-                                                 numericInput(crit("first.cases"),
+                                                 hidden(numericInput(crit("first.cases"),
                                                              label = paste("Value(1 time)"),
                                                              min = 0,
                                                              max = 1,
-                                                             value = 0.5,step = 0.1),
+                                                             value = 0.5,step = 0.1)),
                                                  textOutput(crit("first.pvalue")))),                           
                              column(6, wellPanel(selectInput(crit("second"),"Выберите второй момент", choices = NULL),
-                                                 numericInput(crit("second.cases"),
+                                                 hidden(numericInput(crit("second.cases"),
                                                              label = paste("Value(2 time)"),
                                                              min = 0,
                                                              max = 1,
-                                                             value = 0.5,step = 0.1),
+                                                             value = 0.5,step = 0.1)),
                                                  textOutput(crit("second.pvalue"))))
                          ),
                          hr(),
                          wellPanel(fluidRow(
-                             column(4, actionButton(crit("do.clust"),"Запуск")),
-                             column(4, shinySaveButton(crit("save_res"), "Сохранить результат", "Сохранить результат",filetype=c(".xlsx"))),
-                             column(4,  actionButton(crit("clearHighlight"),"Очистить"))
+                             column(4, disabled(actionButton(crit("do.clust"),"Запуск"))),
+                             column(4, disabled(shinySaveButton(crit("save_res"), "Сохранить результат", "Сохранить результат",filetype=c(".xlsx")))),
+                             column(4, disabled(actionButton(crit("clearHighlight"),"Очистить")))
                          ))
                      )
                  ),
@@ -44,7 +44,7 @@ Main.UI = function(id, label = "Критерий"){
                      tabsetPanel(
                          tabPanel("Карта", leafletOutput(crit("map"),height=600)),
                          tabPanel("Кластеры",plotlyOutput(crit("down_crit_reg")),tableOutput(crit("down_stat"))),
-                         tabPanel("Разряжения",plotlyOutput(crit("up_crit_reg")),tableOutput(crit("up_stat")))
+                         tabPanel("Разряжения",plotlyOutput(crit("up.crit.reg")),tableOutput(crit("up.stat")))
                      )
                  )
              )
