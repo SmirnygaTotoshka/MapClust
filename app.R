@@ -8,15 +8,21 @@
 #
 
 library(shiny)
-source("mc_ui.R")
-source("mc_server.R")
-source("global.R")
-source("main_ui.R")
-source("main_server.R")
+Sys.setlocale(category = "LC_ALL", locale = "ru_RU.UTF-8")
+source("mc_ui.R", encoding = "UTF-8")
+source("mc_server.R", encoding = "UTF-8")
+source("global.R", encoding = "UTF-8")
+source("main_ui.R", encoding = "UTF-8")
+source("main_server.R", encoding = "UTF-8")
+
+
+
 # Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- tagList(
     useShinyjs(),
-    tabsetPanel(
+    navbarPage("MapClust",
+        #rmarkdown::render("intro_rus.Rmd", html_document(toc = TRUE,toc_float = T))
+        tabPanel("Введение", fluidPage(htmlOutput("intro"))),
         MonteCarlo.UI(monte.carlo.id),
         Main.UI(main.id)
     )
@@ -24,6 +30,7 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+    output$intro<-renderUI({includeHTML("intro_rus.html")})
     MonteCarlo.Server(monte.carlo.id)
     Main.Server(main.id)
 }

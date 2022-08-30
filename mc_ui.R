@@ -1,26 +1,33 @@
+
 library(shinyFiles)
 MonteCarlo.UI = function(id, label = "Monte Carlo"){
     mc = NS(id)
-    tabPanel("Monte-Carlo simulation",
+    tabPanel("Симуляция Монте-Карло",
              sidebarLayout(
                  sidebarPanel(
                      verticalLayout(
-                         shinyDirButton(mc("ogr_dir"), "Choose map directory", "Upload"),
-                         sliderInput(mc("number.iteration"), "Choose number of iteration",  min = 100, max = 10000,value = 1000,step = 100),
-                         sliderInput(mc("mark.limits"), "Limits", min = 0,max = 1, step = 0.01, value = c(0.2,0.8)),
-                         checkboxInput(mc("queen"), "8-binded?", value = F),
+                         shinyDirButton(mc("ogr_dir"), "Выберите карту", "Загрузить"),
+                         sliderInput(mc("number.iteration"), "Выберите число итераций",  min = 1000, max = 10000,value = 1000,step = 100),
+                         sliderInput(mc("mark.limits"), "Пределы", min = 0,max = 1, step = 0.01, value = c(0.2,0.8)),
+                         checkboxInput(mc("queen"), "8-связный поиск?", value = F),
                          hr(),
                          splitLayout(
-                             actionButton(mc("start.sim"),"Start"),
-                             shinySaveButton(mc("save_sim"), "Save simulation result", "Save result",filetype=c(".xlsx"))
+                             disabled(actionButton(mc("start.sim"),"Запуск")),
+                             disabled(shinySaveButton(mc("save_sim"), "Сохранить результат", "Save result",filetype=c(".xlsx")))
                          )
                      )
                  ),
                  #+ Show a plot of the generated distribution
                  mainPanel(
                      tabsetPanel(
-                         tabPanel("Down limit simulation", plotOutput(mc("down.PDF")),plotOutput(mc("down.alpha2")),tableOutput(mc("down.table"))),
-                         tabPanel("Up limit simulation", plotOutput(mc("up.PDF")),plotOutput(mc("up.alpha2")),tableOutput(mc("up.table")))
+                         tabPanel("Нижняя граница", 
+                                  plotlyOutput(mc("down_PDF")),
+                                  plotlyOutput(mc("down_alpha")),
+                                  tableOutput(mc("down_table"))),
+                         tabPanel("Верхняя граница", 
+                                  plotlyOutput(mc("up.PDF")),
+                                  plotlyOutput(mc("up.alpha")),
+                                  tableOutput(mc("up.table")))
                      )
                  )
              )
