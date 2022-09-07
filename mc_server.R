@@ -2,7 +2,6 @@ library(shiny)
 library(rgdal)
 library(shinyjs)
 library(plotly)
-library(shinyFiles)
 library(igraph)
 library(shinyalert)
 library(surveillance)
@@ -22,63 +21,76 @@ MonteCarlo.Server <- function(id) {
                 sim.up = NA
             )
             
-            volumes = c(Home = "~")
+            sim.data = reactiveVal(NULL)
             
-            sim.data = reactiveValues(
-                path = NA,
-                data = NULL
-            )
-            
-            shinyDirChoose(
-                input,
-                'ogr_dir',
-                roots = volumes,
-                allowDirCreate = FALSE,
-                session = session
-            )
-            shinyFileSave(
-                input,
-                'save_sim',
-                roots = volumes,
-                allowDirCreate = T,
-                session = session
-            )
+            success.parse = reactiveVal(F)
             
             observe({
-                if (is.integer(input$ogr_dir)) {
-                    cat("No map directory has been selected\n")
-                } 
-                else {
-                    sim.data$path = parseDirPath(volumes, input$ogr_dir)
-                    enable("start.sim")
-                    cat(paste0(sim.data$path,"\n"))
-                }
+                toggleState(id = "start.sim", condition = !is.null(sim.data()))
+                toggleState(id = "save_sim", condition = !is.na(result$adj.mat))
+            })
+            
+            observeEvent(input$ogr_dir, {
+                    tryCatch({
+                        shpdf <- input$ogr_dir
+                        
+                        # The files are uploaded with names
+                        # 0.dbf, 1.prj, 2.shp, 3.xml, 4.shx
+                        # (path/names are in column datapath)
+                        # We need to rename the files with the actual names:
+                        # fe_2007_39_county.dbf, etc.
+                        # (these are in column name)
+                        
+                        # Name of the temporary directory where files are uploaded
+                        
+                        tempdirname <- dirname(shpdf$datapath[1])
+                        
+                        # Rename files
+                        for (i in 1:nrow(shpdf)) {
+                            file.rename(
+                                shpdf$datapath[i],
+                                paste0(tempdirname, "/", shpdf$name[i])
+                            )
+                        }
+                        print(shpdf)
+                        
+                        sim.data(tryCatch(expr = {
+                            polygons = readOGR(dsn = paste(tempdirname,
+                                                           shpdf$name[grep(pattern = "*.shp$", shpdf$name)],
+                                                           sep = "/"))   
+                            success.parse(T)
+                            polygons
+                        },
+                        error = function(e){
+                            shinyalert("Error", 
+                                       paste("Не могу считать данные, потому что",e),
+                                       type = "error"
+                            )
+                            NULL
+                        }))
+                        # Now we read the shapefile with readOGR() of rgdal package
+                        # passing the name of the file with .shp extension.
+                        
+                        # We use the function grep() to search the pattern "*.shp$"
+                        # within each element of the character vector shpdf$name.
+                        # grep(pattern="*.shp$", shpdf$name)
+                        # ($ at the end denote files that finish with .shp,
+                        # not only that contain .shp)
+                    },
+                    error = function(e){
+                       shinyalert("Error",
+                                   paste("Не могу считать данные, потому что ",e),
+                                   type = "error"
+                        )
+                    })
+                # }
             })
             
             observeEvent(input$start.sim, {
                 disable("start.sim")
                 disable("ogr_dir")
                 disable("save_sim")
-                layers = strsplit(sim.data$path, "/")[[1]]
-                layer = layers[length(layers)]
-                success.parse = F
-                withProgress(message = "Чтение данных", {
-                    incProgress(0.5)
-                    sim.data$data = tryCatch(expr = {
-                        polygons = readOGR(dsn = sim.data$path, layer = as.character(layer))   
-                        success.parse = T
-                        polygons
-                    },
-                    error = function(e){
-                        shinyalert("Error", 
-                                   paste("Не могу считать данные, потому что",e),
-                                   type = "error"
-                        )
-                        NULL
-                    })
-                    incProgress(0.5)
-                })
-                if(success.parse){
+                if(success.parse()){
                     n.iter = isolate(input$number.iteration)
                     p.down = isolate(input$mark.limits[1])
                     p.up = isolate(input$mark.limits[2])
@@ -105,7 +117,7 @@ MonteCarlo.Server <- function(id) {
                             max.clust.size = data.frame()
                             incProgress(0.2,message = "Построение матрицы смежности")
                             #print(sim.data$data)
-                            adjacencyMatrix = poly2adjmat(sim.data$data, queen = queen, zero.policy = T,row.names = sim.data$data@data$GID_1)
+                            adjacencyMatrix = poly2adjmat(sim.data(), queen = queen, zero.policy = T,row.names = sim.data()@data$GID_1)
                             result$adj.mat = adjacencyMatrix
                             incProgress(0.1)
                             if(p.down != 0){
@@ -259,26 +271,31 @@ MonteCarlo.Server <- function(id) {
                     shinyalert("Warning",
                                "Не могу считать данные. NULL.",
                                type = 'warning')
-                    print(sim.data$data)
+                    print(sim.data())
                 }
             })
             
-            observe({
-                if (is.integer(input$save_sim)) {
-                    cat("No file has been selected (shinySaveChoose)\n")
-                } 
-                else {
-                    info = parseSavePath(volumes, input$save_sim)
-                    write.xlsx(result$params,file = as.character(info$datapath),sheetName = "Params",row.names = F)
-                    write.xlsx(result$adj.mat,as.character(info$datapath),sheetName = "Adj.Mat",append = T,row.names = T,col.names = T)
-                    write.xlsx(result$sim.down,as.character(info$datapath),sheetName = "Down",append = T,row.names = F)
-                    write.xlsx(result$sim.up,as.character(info$datapath),sheetName = "Up",append = T,row.names = F)
-                }
-            })
+            output$save_sim = downloadHandler(
+                filename = function(){
+                    paste("simulation-", Sys.Date(), "-down=",input$mark.limits[1],"-up=",input$mark.limits[2],".xlsx", sep="")
+                },
+                content = function(file){
+                    tryCatch({
+                        write.xlsx(result$params,file = as.character(file),sheetName = "Params",row.names = F)
+                        write.xlsx(result$adj.mat,as.character(file),sheetName = "Adj.Mat",append = T,row.names = T,col.names = T)
+                        write.xlsx(result$sim.down,as.character(file),sheetName = "Down",append = T,row.names = F)
+                        write.xlsx(result$sim.up,as.character(file),sheetName = "Up",append = T,row.names = F)
+                    },error = function(e){
+                        shinyalert("Error",
+                                   paste("Не могу сохранить результат, потому что ",e),
+                                   type = "error"
+                        )
+                    })
+                })
             
             output$down_PDF = renderPlotly({
-                validate(need(!is.null(sim.data$data),message = "Нет данных."))
-                validate(need(result$sim.down,"Некорректный порог для поиска кластеров"))
+                validate(need(!is.null(sim.data()),message = "Нет данных."))
+                validate(need(result$sim.down,"Запустите симуляцию."))
                 # ggplot(result$sim.down) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
                 #     labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
                 fig = plot_ly(result$sim.down, x = ~Size, y = ~MeanProbabilities,type = 'bar',color = I("blue"), alpha = 0.85) %>%
@@ -287,8 +304,8 @@ MonteCarlo.Server <- function(id) {
             })
             
             output$down_alpha = renderPlotly({
-                 validate(need(!is.null(sim.data$data),message = "Нет данных."))
-                 validate(need(result$sim.down,"Некорректный порог для поиска кластеров"))
+                 validate(need(!is.null(sim.data()),message = "Нет данных."))
+                 validate(need(result$sim.down,"Запустите симуляцию."))
                  # ggplot(result$sim.down) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
                  #     labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
                  fig = plot_ly(result$sim.down, x = ~Size, y = ~PMaxNGreaterNi,type = 'bar',color = I("blue"), alpha = 0.85) %>%
@@ -297,14 +314,14 @@ MonteCarlo.Server <- function(id) {
             })
                         
             output$down_table = renderTable({
-                validate(need(!is.null(sim.data$data),message = "Нет данных."))
-                validate(need(result$sim.down,"Некорректный порог для поиска кластеров"))
+                validate(need(!is.null(sim.data()),message = "Нет данных."))
+                validate(need(result$sim.down,"Запустите симуляцию."))
                 result$sim.down
             },digits = 4)
             
             output$up.PDF = renderPlotly({
-                validate(need(!is.null(sim.data$data),message = "Нет данных."))
-                validate(need(result$sim.up,"Некорректный порог для поиска разряжений"))
+                validate(need(!is.null(sim.data()),message = "Нет данных."))
+                validate(need(result$sim.up,"Запустите симуляцию."))
                 #     ggplot(result$sim.up) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
                 #         labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
                 fig = plot_ly(result$sim.up, x = ~Size, y = ~MeanProbabilities,type = 'bar',color = I("blue"), alpha = 0.85) %>%
@@ -313,8 +330,8 @@ MonteCarlo.Server <- function(id) {
             })
             
             output$up.alpha = renderPlotly({
-                validate(need(!is.null(sim.data$data),message = "Нет данных."))
-                validate(need(result$sim.up,message = "Некорректный порог для поиска разряжений"))
+                validate(need(!is.null(sim.data()),message = "Нет данных."))
+                validate(need(result$sim.up,message = "Запустите симуляцию."))
                 # ggplot(result$sim.up) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
                 #     labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
                 fig = plot_ly(result$sim.up, x = ~Size, y = ~PMaxNGreaterNi,type = 'bar',color = I("blue"), alpha = 0.85) %>%
@@ -323,8 +340,8 @@ MonteCarlo.Server <- function(id) {
             })
             
             output$up.table = renderTable({
-                validate(need(!is.null(sim.data$data),message = "Нет данных."))
-                validate(need(result$sim.up,"Некорректный порог для поиска разряжений"))
+                validate(need(!is.null(sim.data()),message = "Нет данных."))
+                validate(need(result$sim.up,"Запустите симуляцию."))
                 result$sim.up
             },digits = 4)
             

@@ -47,28 +47,7 @@ Main.Server <- function(id) {
             
             map.data = reactiveVal(NULL)#initial map data
             copy.map = reactiveVal(NULL)#cached map,using in program
-            
-            volumes = c(Home = "~")
                 
-            shinyDirChoose(
-                    input,
-                    'ogr_dir',
-                    roots = volumes,
-                    allowDirCreate = FALSE,
-                    session = session
-            )
-                
-            shinyDirChoose(
-                    input,
-                    'save_res',
-                    roots = volumes,
-                    allowDirCreate = T,
-                    session = session
-            )
-            
-             
-            
-            #
             
             #Rendering block-----------------------------------------------------------------
 
@@ -152,6 +131,40 @@ Main.Server <- function(id) {
                 )    
             })
             
+            output$save_res = downloadHandler(
+                filename = function(){
+                    paste("result-", Sys.Date(), "-alpha=",input$alpha,".xlsx", sep="")
+            },
+                content = function(file){
+                    tryCatch({
+                        #path = dirname(file)
+                        #rgdal::writeOGR(copy.map(),path, "map", driver="ESRI Shapefile",encoding = "UTF-8")
+                        if(!is.null(result$discharges)){
+                            write.xlsx(result$discharges,file = file,sheetName = "Discharges")
+                        }
+                        if(!is.null(result$clusters)){
+                            write.xlsx(result$clusters,file = file,sheetName = "Clusters",append = T)
+                        }
+                        if(!is.null(monte.carlo$sim.down)){
+                            write.xlsx(monte.carlo$sim.down,file = file,sheetName = "Crit_Down",append = T)
+                        }
+                        if(!is.null(monte.carlo$sim.up)){
+                            write.xlsx(monte.carlo$sim.up,file = file,sheetName = "Crit_Up",append = T)
+                        }
+                        if(!is.null(monte.carlo$adj.mat)){
+                            write.xlsx(monte.carlo$adj.mat,file = file,sheetName = "Adj_Mat",append = T)
+                        }
+                        if(!is.null(monte.carlo$params)){
+                            write.xlsx(monte.carlo$params,file = file,sheetName = "Params",append = T)
+                        }
+                    },error = function(e){
+                        shinyalert("Error",
+                                   paste("Не могу сохранить результат, потому что ",e),
+                                   type = "error"
+                        )
+                    })
+            })
+            
             
             #Block of actions-------------------------------------------------------------
             
@@ -209,14 +222,48 @@ Main.Server <- function(id) {
                 }
                 else {
                     tryCatch({
+                        shpdf <- input$ogr_dir
                         
-                        path = parseDirPath(volumes, input$ogr_dir)
-                        print(paste("Path to map","=",path))
-                        layers = strsplit(path, "/")[[1]]
-                        layer = layers[length(layers)]
-                        print(paste("Layer","=",layer))
+                        # The files are uploaded with names
+                        # 0.dbf, 1.prj, 2.shp, 3.xml, 4.shx
+                        # (path/names are in column datapath)
+                        # We need to rename the files with the actual names:
+                        # fe_2007_39_county.dbf, etc.
+                        # (these are in column name)
                         
-                        map.df = rgdal::readOGR(dsn = path, layer = as.character(layer))
+                        # Name of the temporary directory where files are uploaded
+                       
+                        tempdirname <- dirname(shpdf$datapath[1])
+                        
+                        # Rename files
+                        for (i in 1:nrow(shpdf)) {
+                            file.rename(
+                                shpdf$datapath[i],
+                                paste0(tempdirname, "/", shpdf$name[i])
+                            )
+                        }
+                        print(shpdf)
+                        
+                        # Now we read the shapefile with readOGR() of rgdal package
+                        # passing the name of the file with .shp extension.
+                        
+                        # We use the function grep() to search the pattern "*.shp$"
+                        # within each element of the character vector shpdf$name.
+                        # grep(pattern="*.shp$", shpdf$name)
+                        # ($ at the end denote files that finish with .shp,
+                        # not only that contain .shp)
+                        map.df <- readOGR(paste(tempdirname,
+                                             shpdf$name[grep(pattern = "*.shp$", shpdf$name)],
+                                             sep = "/"
+                        ))
+                        
+                        # path = parseDirPath(volumes, input$ogr_dir)
+                        # print(paste("Path to map","=",path))
+                        # layers = strsplit(path, "/")[[1]]
+                        # layer = layers[length(layers)]
+                        # print(paste("Layer","=",layer))
+                        # 
+                        # map.df = rgdal::readOGR(dsn = path, layer = as.character(layer))
                         map.df1 = sf::st_shift_longitude(sf::st_as_sf(map.df))
                         map.df = as(map.df1, "Spatial")
                         map.data(map.df)
@@ -769,42 +816,42 @@ Main.Server <- function(id) {
 
             })
 
-            observeEvent(input$save_res,ignoreInit = T,{
-                if (is.integer(input$save_res)) {
-                    cat("No file has been selected (shinyResSave)\n")
-                }
-                else {
-                    tryCatch({
-                                path = parseDirPath(volumes, input$save_res)
-                                rgdal::writeOGR(copy.map(),path, "map", driver="ESRI Shapefile",encoding = "UTF-8")
-                                tbl.path = file.path(path, paste0("result_","alpha=",input$alpha,".xlsx"))
-                                if(!is.null(result$discharges)){
-                                    write.xlsx(result$discharges,file = tbl.path,sheetName = "Discharges")
-                                }
-                                if(!is.null(result$clusters)){
-                                    write.xlsx(result$clusters,file = tbl.path,sheetName = "Clusters",append = T)
-                                }
-                                if(!is.null(monte.carlo$sim.down)){
-                                    write.xlsx(monte.carlo$sim.down,file = tbl.path,sheetName = "Crit_Down",append = T)
-                                }
-                                if(!is.null(monte.carlo$sim.up)){
-                                    write.xlsx(monte.carlo$sim.up,file = tbl.path,sheetName = "Crit_Up",append = T)
-                                }
-                                if(!is.null(monte.carlo$adj.mat)){
-                                    write.xlsx(monte.carlo$adj.mat,file = tbl.path,sheetName = "Adj_Mat",append = T)
-                                }
-                                if(!is.null(monte.carlo$params)){
-                                    write.xlsx(monte.carlo$params,file = tbl.path,sheetName = "Params",append = T)
-                                }
-                    },error = function(e){
-                        shinyalert("Error",
-                                   paste("Не могу сохранить результат, потому что ",e),
-                                   type = "error"
-                        )
-                    })
-
-                }
-            })
+            # observeEvent(input$save_res,ignoreInit = T,{
+            #     if (is.integer(input$save_res)) {
+            #         cat("No file has been selected (shinyResSave)\n")
+            #     }
+            #     else {
+            #         tryCatch({
+            #                     path = parseDirPath(volumes, input$save_res)
+            #                     rgdal::writeOGR(copy.map(),path, "map", driver="ESRI Shapefile",encoding = "UTF-8")
+            #                     tbl.path = file.path(path, paste0("result_","alpha=",input$alpha,".xlsx"))
+            #                     if(!is.null(result$discharges)){
+            #                         write.xlsx(result$discharges,file = tbl.path,sheetName = "Discharges")
+            #                     }
+            #                     if(!is.null(result$clusters)){
+            #                         write.xlsx(result$clusters,file = tbl.path,sheetName = "Clusters",append = T)
+            #                     }
+            #                     if(!is.null(monte.carlo$sim.down)){
+            #                         write.xlsx(monte.carlo$sim.down,file = tbl.path,sheetName = "Crit_Down",append = T)
+            #                     }
+            #                     if(!is.null(monte.carlo$sim.up)){
+            #                         write.xlsx(monte.carlo$sim.up,file = tbl.path,sheetName = "Crit_Up",append = T)
+            #                     }
+            #                     if(!is.null(monte.carlo$adj.mat)){
+            #                         write.xlsx(monte.carlo$adj.mat,file = tbl.path,sheetName = "Adj_Mat",append = T)
+            #                     }
+            #                     if(!is.null(monte.carlo$params)){
+            #                         write.xlsx(monte.carlo$params,file = tbl.path,sheetName = "Params",append = T)
+            #                     }
+            #         },error = function(e){
+            #             shinyalert("Error",
+            #                        paste("Не могу сохранить результат, потому что ",e),
+            #                        type = "error"
+            #             )
+            #         })
+            # 
+            #     }
+            # })
         }
     )
 }

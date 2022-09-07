@@ -1,4 +1,3 @@
-library(shinyFiles)
 library(leaflet)
 
 Main.UI = function(id, label = "Критерий"){
@@ -7,10 +6,11 @@ Main.UI = function(id, label = "Критерий"){
              sidebarLayout(
                  sidebarPanel(
                      verticalLayout(
-                           wellPanel(shinyDirButton(crit("ogr_dir"), title = "Выберите карту", label = "Карта"),
-                                     fileInput(crit("mc_res"), "Загрузить результат симуляции", buttonLabel = "Файл .xlsx")),
+                           wellPanel(fileInput(crit("ogr_dir"), label = "Карта", multiple = T),
+                                     fileInput(crit("mc_res"), "Загрузить результат симуляции", buttonLabel = "Файл .xlsx", accept = ".xlsx")),
                            wellPanel(selectInput(crit("representation"),"Режим отображения",choices = c("Первый момент","Второй момент","Разница"),selected = "Разница"),
-                                     actionButton(crit("check.alpha"),"Проверить ошибку первого рода")),
+                                     #actionButton(crit("check.alpha"),"Проверить ошибку первого рода")
+                                     ),
                          sliderInput(crit("alpha"), "Ошибка первого рода", min = 0.001,max = 0.1, step = 0.001, value = 0.05),
                          hr(),
                          textOutput(crit("dif.print")),
@@ -34,9 +34,9 @@ Main.UI = function(id, label = "Критерий"){
                          ),
                          hr(),
                          wellPanel(fluidRow(
-                             column(4, disabled(actionButton(crit("do.clust"),"Запуск"))),
-                             column(4, disabled(shinyDirButton(crit("save_res"), "Сохранить результат", "Сохранить результат",filetype=c(".xlsx")))),
-                             column(4, disabled(actionButton(crit("clearHighlight"),"Очистить")))
+                             column(4, align = "center", disabled(actionButton(crit("do.clust"),"Запуск"))),
+                             column(4, align = "center", disabled(downloadButton(crit("save_res"), "Сохранить результат"))),
+                             column(4, align = "center", disabled(actionButton(crit("clearHighlight"),"Очистить")))
                          ))
                      )
                  ),
