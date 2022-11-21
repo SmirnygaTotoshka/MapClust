@@ -5,6 +5,7 @@ library(purrr)
 library(plotly)
 library(igraph)
 library(surveillance)
+library(sf)
 Main.Server <- function(id) {
     moduleServer(
         id,
