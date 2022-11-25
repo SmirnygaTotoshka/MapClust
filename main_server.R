@@ -1,5 +1,5 @@
 library(leaflet)
-library(xlsx)
+library(openxlsx)
 library(ggplot2)
 library(purrr)
 library(plotly)
@@ -95,8 +95,47 @@ Main.Server <- function(id) {
             })
             
             output$up.stat = renderTable({
-                validate(need(!is.null(result$discharges),"Отстутствует результат."))
+                validate(need(copy.map()@data,"Отстутствуют данные"))
                 result$discharges
+            },digits = 4)
+            
+            output$val_distr = renderPlotly({
+                validate(need(copy.map(),"Отстутствуют данные."))
+                if(input$representation == "Разница"){
+                    validate(need(copy.map()@data$X,"Выберите моменты времени"))
+                    fig = plot_ly(copy.map()@data, x = ~GID_1, y = ~X,type = 'bar') %>%
+                        layout(xaxis = list(title="Регион"),yaxis = list(title="Нормированная величина"),title="Распределение нормированной величины")
+                    
+                }
+                else if(input$representation == "Первый момент"){
+                    validate(need(copy.map()@data$X1,"Выберите моменты времени"))
+                    fig = plot_ly(copy.map()@data, x = ~GID_1, y = ~X1,type = 'bar') %>%
+                        layout(xaxis = list(title="Регион"),yaxis = list(title="Нормированная величина"),title="Распределение нормированной величины")
+                    
+                }
+                else if(input$representation == "Второй момент"){
+                    validate(need(copy.map()@data$X2,"Выберите моменты времени"))
+                    fig = plot_ly(copy.map()@data, x = ~GID_1, y = ~X2,type = 'bar') %>%
+                        layout(xaxis = list(title="Регион"),yaxis = list(title="Нормированная величина"),title="Распределение нормированной величины")
+                    
+                }
+                fig
+            })
+            
+            output$val = renderTable({
+                validate(need(copy.map(),"Отстутствуют данные"))
+                if(input$representation == "Разница"){
+                    validate(need(copy.map()@data$X,"Выберите моменты времени"))
+                    return(copy.map()@data[,c("GID_1", obs.columns$first, obs.columns$second, "X", "P.VALUE")])
+                }
+                else if(input$representation == "Первый момент"){
+                    validate(need(copy.map()@data$X1,"Выберите моменты времени"))
+                    return(copy.map()@data[,c("GID_1", obs.columns$first, "X1", "P.VALUE1")])
+                }
+                else if(input$representation == "Второй момент"){
+                    validate(need(copy.map()@data$X2,"Выберите моменты времени"))
+                    return(copy.map()@data[,c("GID_1", obs.columns$second, "X2", "P.VALUE1")])
+                }
             },digits = 4)
             
             
@@ -140,24 +179,42 @@ Main.Server <- function(id) {
                     tryCatch({
                         #path = dirname(file)
                         #rgdal::writeOGR(copy.map(),path, "map", driver="ESRI Shapefile",encoding = "UTF-8")
+                        wb <- createWorkbook()
+                        
+                        # add worksheets ----------------------------------------------------------
+                        
+                        addWorksheet(wb, "Discharges")
+                        addWorksheet(wb, "Clusters")
+                        addWorksheet(wb, "Crit_Down")
+                        addWorksheet(wb, "Crit_Up")
+                        addWorksheet(wb, "Adj_Mat")
+                        addWorksheet(wb, "Params")
+                        
+                        writeData(wb, sheet = "Params", x = result$params)
+                        writeData(wb, sheet = "Adj_Mat", x = as.data.frame(result$adj.mat),rowNames = T)
+                        writeData(wb, sheet = "Down", x = result$sim.down)
+                        writeData(wb, sheet = "Up", x = result$sim.up)
+                        
                         if(!is.null(result$discharges)){
+                            writeData(wb, sheet = "Discharges", x = result$discharges)
                             write.xlsx(result$discharges,file = file,sheetName = "Discharges")
                         }
                         if(!is.null(result$clusters)){
-                            write.xlsx(result$clusters,file = file,sheetName = "Clusters",append = T)
+                            writeData(wb, sheet = "Clusters", x = result$clusters)
                         }
                         if(!is.null(monte.carlo$sim.down)){
-                            write.xlsx(monte.carlo$sim.down,file = file,sheetName = "Crit_Down",append = T)
+                            writeData(wb, sheet = "Crit_Down", x = monte.carlo$sim.down)
                         }
                         if(!is.null(monte.carlo$sim.up)){
-                            write.xlsx(monte.carlo$sim.up,file = file,sheetName = "Crit_Up",append = T)
+                            writeData(wb, sheet = "Crit_Up", x = monte.carlo$sim.up)
                         }
                         if(!is.null(monte.carlo$adj.mat)){
-                            write.xlsx(monte.carlo$adj.mat,file = file,sheetName = "Adj_Mat",append = T)
+                            writeData(wb, sheet = "Adj_Mat", x = monte.carlo$adj.mat)
                         }
                         if(!is.null(monte.carlo$params)){
-                            write.xlsx(monte.carlo$params,file = file,sheetName = "Params",append = T)
+                            writeData(wb, sheet = "Params", x = monte.carlo$params)
                         }
+                        saveWorkbook(wb, file, overwrite = T)
                     },error = function(e){
                         shinyalert("Error",
                                    paste("Не могу сохранить результат, потому что ",e),
@@ -302,10 +359,10 @@ Main.Server <- function(id) {
             
             observeEvent(input$mc_res,{
                   tryCatch({
-                      monte.carlo$params = read.xlsx(input$mc_res$datapath,sheetName = "Params")
-                      monte.carlo$adj.mat = read.xlsx(input$mc_res$datapath,sheetName = "Adj.Mat",row.names = T,col.names = T)
-                      monte.carlo$sim.down = read.xlsx(input$mc_res$datapath,sheetName = "Down")
-                      monte.carlo$sim.up = read.xlsx(input$mc_res$datapath,sheetName = "Up")
+                      monte.carlo$params = read.xlsx(input$mc_res$datapath,sheet = "Params")
+                      monte.carlo$adj.mat = read.xlsx(input$mc_res$datapath,sheet = "Adj_Mat",rowNames = T)
+                      monte.carlo$sim.down = read.xlsx(input$mc_res$datapath,sheet = "Down")
+                      monte.carlo$sim.up = read.xlsx(input$mc_res$datapath,sheet = "Up")
 
                   },
                   error = function(e){
@@ -609,7 +666,7 @@ Main.Server <- function(id) {
                     print("Search clusters")
 
                     s.n.down = function(x, p, data){
-                        return(-2 * sum(log(data@data[which(data@data$GID_1 %in% x),render.col()] / p)))
+                        return(-2 * sum(log(data@data[which(data@data$GID_1 %in% x),render.col()] / p + 0.000001)))
                     }
 
                     buf = isolate(copy.map())
@@ -639,6 +696,7 @@ Main.Server <- function(id) {
                             print(data.clusters)
                             n.crit = sim.down$Size[which.min(sim.down$distToCrit)]
                             signif.clust = data.clusters[data.clusters$N >= n.crit | data.clusters$S >= data.clusters$S.crit,]
+                            signif.clust = signif.clust[!is.na(signif.clust$ID),]
                             signif.result$clusters = signif.clust
                             print("Significant clusters")
                             print(signif.clust)
@@ -646,8 +704,9 @@ Main.Server <- function(id) {
                                 has.clusters = 2
                                 #colours = cluster.color(nrow(signif.clust))
                                 for (i in signif.clust$ID) {
+                                    print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                     region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
-                                    #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                                    print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                     union.clust = surveillance::unionSpatialPolygons(region)
                                     proxy %>%
                                         addPolylines(
@@ -670,7 +729,7 @@ Main.Server <- function(id) {
                         
 
                         s.n.up = function(x, p, data){
-                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x),render.col()]) / (1 - p)))))
+                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x),render.col()]) / (1 - p) + 0.000001))))
                         }
 
                         buf = isolate(copy.map())
@@ -699,6 +758,7 @@ Main.Server <- function(id) {
                                 print(data.discharges)
                                 n.crit = sim.up$Size[which.min(sim.up$distToCrit)]
                                 signif.dis = data.discharges[data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.crit,]
+                                signif.dis = signif.dis[!is.na(signif.dis$ID),]
                                 signif.result$discharges = signif.dis
                                 print("Significant discharges")
                                 print(signif.dis)
@@ -706,8 +766,9 @@ Main.Server <- function(id) {
                                     has.discharges = 2
                                     #colours = cluster.color(nrow(signif.dis))
                                     for (i in signif.dis$ID) {
+                                        print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                         region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
-                                        #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                                        print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                         union = surveillance::unionSpatialPolygons(region)
                                         proxy %>%
                                             addPolylines(

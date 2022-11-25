@@ -43,7 +43,7 @@ Main.UI = function(id, label = "Критерий"){
                  #+ Show a plot of the generated distribution
                  mainPanel(
                      tabsetPanel(
-                         tabPanel("Карта", leafletOutput(crit("map"),height=600)),
+                         tabPanel("Карта", leafletOutput(crit("map"),height=600),  plotlyOutput(crit("val_distr")), tableOutput(crit("val"))),
                          tabPanel("Кластеры",plotlyOutput(crit("down_crit_reg")),tableOutput(crit("down_stat"))),
                          tabPanel("Разряжения",plotlyOutput(crit("up.crit.reg")),tableOutput(crit("up.stat")))
                      )
