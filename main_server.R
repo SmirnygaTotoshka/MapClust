@@ -103,19 +103,22 @@ Main.Server <- function(id) {
                 validate(need(copy.map(),"Отстутствуют данные."))
                 if(input$representation == "Разница"){
                     validate(need(copy.map()@data$X,"Выберите моменты времени"))
-                    fig = plot_ly(copy.map()@data, x = ~GID_1, y = ~X,type = 'bar') %>%
+                    den = density(copy.map()@data$X)
+                    fig = plot_ly( x = ~den$x, y = ~den$y, type = 'scatter', mode = 'lines', fill = 'tozeroy') %>%
                         layout(xaxis = list(title="Регион"),yaxis = list(title="Нормированная величина"),title="Распределение нормированной величины")
                     
                 }
                 else if(input$representation == "Первый момент"){
                     validate(need(copy.map()@data$X1,"Выберите моменты времени"))
-                    fig = plot_ly(copy.map()@data, x = ~GID_1, y = ~X1,type = 'bar') %>%
+                    den = density(copy.map()@data$X1)
+                    fig = plot_ly( x = ~den$x, y = ~den$y, type = 'scatter', mode = 'lines', fill = 'tozeroy') %>%
                         layout(xaxis = list(title="Регион"),yaxis = list(title="Нормированная величина"),title="Распределение нормированной величины")
                     
                 }
                 else if(input$representation == "Второй момент"){
                     validate(need(copy.map()@data$X2,"Выберите моменты времени"))
-                    fig = plot_ly(copy.map()@data, x = ~GID_1, y = ~X2,type = 'bar') %>%
+                    den = density(copy.map()@data$X2)
+                    fig = plot_ly( x = ~den$x, y = ~den$y, type = 'scatter', mode = 'lines', fill = 'tozeroy') %>%
                         layout(xaxis = list(title="Регион"),yaxis = list(title="Нормированная величина"),title="Распределение нормированной величины")
                     
                 }
