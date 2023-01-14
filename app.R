@@ -22,7 +22,7 @@ source("main_server.R", encoding = "UTF-8")
 ui <- tagList(
     useShinyjs(),
     navbarPage("MapClust",
-        #rmarkdown::render("intro_rus.Rmd", html_document(toc = TRUE,toc_float = T))
+        #rmarkdown::render("intro_rus.Rmd", rmarkdown::html_document(toc = TRUE,toc_float = T))
         tabPanel("Введение", fluidPage(htmlOutput("intro"))),
         MonteCarlo.UI(monte.carlo.id),
         Main.UI(main.id)
