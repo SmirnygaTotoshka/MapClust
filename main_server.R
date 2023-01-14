@@ -1,5 +1,5 @@
 library(leaflet)
-library(xlsx)
+library(openxlsx)
 library(ggplot2)
 library(purrr)
 library(plotly)
@@ -135,36 +135,54 @@ Main.Server <- function(id) {
             output$save_res = downloadHandler(
                 filename = function(){
                     paste("result-", Sys.Date(), "-alpha=",input$alpha,".xlsx", sep="")
-            },
+                },
                 content = function(file){
                     tryCatch({
                         #path = dirname(file)
                         #rgdal::writeOGR(copy.map(),path, "map", driver="ESRI Shapefile",encoding = "UTF-8")
+                        wb <- createWorkbook()
+                        
+                        # add worksheets ----------------------------------------------------------
+                        
+                        addWorksheet(wb, "Discharges")
+                        addWorksheet(wb, "Clusters")
+                        addWorksheet(wb, "Crit_Down")
+                        addWorksheet(wb, "Crit_Up")
+                        addWorksheet(wb, "Adj_Mat")
+                        addWorksheet(wb, "Params")
+                        
+                        writeData(wb, sheet = "Params", x = result$params)
+                        writeData(wb, sheet = "Adj_Mat", x = as.data.frame(result$adj.mat),rowNames = T)
+                        writeData(wb, sheet = "Down", x = result$sim.down)
+                        writeData(wb, sheet = "Up", x = result$sim.up)
+                        
                         if(!is.null(result$discharges)){
+                            writeData(wb, sheet = "Discharges", x = result$discharges)
                             write.xlsx(result$discharges,file = file,sheetName = "Discharges")
                         }
                         if(!is.null(result$clusters)){
-                            write.xlsx(result$clusters,file = file,sheetName = "Clusters",append = T)
+                            writeData(wb, sheet = "Clusters", x = result$clusters)
                         }
                         if(!is.null(monte.carlo$sim.down)){
-                            write.xlsx(monte.carlo$sim.down,file = file,sheetName = "Crit_Down",append = T)
+                            writeData(wb, sheet = "Crit_Down", x = monte.carlo$sim.down)
                         }
                         if(!is.null(monte.carlo$sim.up)){
-                            write.xlsx(monte.carlo$sim.up,file = file,sheetName = "Crit_Up",append = T)
+                            writeData(wb, sheet = "Crit_Up", x = monte.carlo$sim.up)
                         }
                         if(!is.null(monte.carlo$adj.mat)){
-                            write.xlsx(monte.carlo$adj.mat,file = file,sheetName = "Adj_Mat",append = T)
+                            writeData(wb, sheet = "Adj_Mat", x = monte.carlo$adj.mat)
                         }
                         if(!is.null(monte.carlo$params)){
-                            write.xlsx(monte.carlo$params,file = file,sheetName = "Params",append = T)
+                            writeData(wb, sheet = "Params", x = monte.carlo$params)
                         }
+                        saveWorkbook(wb, file, overwrite = T)
                     },error = function(e){
                         shinyalert("Error",
                                    paste("Не могу сохранить результат, потому что ",e),
                                    type = "error"
                         )
                     })
-            })
+                })
             
             
             #Block of actions-------------------------------------------------------------
@@ -302,10 +320,10 @@ Main.Server <- function(id) {
             
             observeEvent(input$mc_res,{
                   tryCatch({
-                      monte.carlo$params = read.xlsx(input$mc_res$datapath,sheetName = "Params")
-                      monte.carlo$adj.mat = read.xlsx(input$mc_res$datapath,sheetName = "Adj.Mat",row.names = T,col.names = T)
-                      monte.carlo$sim.down = read.xlsx(input$mc_res$datapath,sheetName = "Down")
-                      monte.carlo$sim.up = read.xlsx(input$mc_res$datapath,sheetName = "Up")
+                      monte.carlo$params = read.xlsx(input$mc_res$datapath,sheet = "Params")
+                      monte.carlo$adj.mat = read.xlsx(input$mc_res$datapath,sheet = "Adj_Mat",rowNames = T)
+                      monte.carlo$sim.down = read.xlsx(input$mc_res$datapath,sheet = "Down")
+                      monte.carlo$sim.up = read.xlsx(input$mc_res$datapath,sheet = "Up")
 
                   },
                   error = function(e){

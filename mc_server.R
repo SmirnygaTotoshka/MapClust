@@ -5,7 +5,7 @@ library(plotly)
 library(igraph)
 library(shinyalert)
 library(surveillance)
-library(xlsx)
+library(openxlsx)
 
 MonteCarlo.Server <- function(id) {
     moduleServer(
@@ -277,14 +277,40 @@ MonteCarlo.Server <- function(id) {
             
             output$save_sim = downloadHandler(
                 filename = function(){
-                    paste("simulation-", Sys.Date(), "-down=",input$mark.limits[1],"-up=",input$mark.limits[2],".xlsx", sep="")
+                    A  =  paste0("simulation_", 
+                                 gsub("-","_",Sys.Date(),fixed = T), 
+                                 "_down=",
+                                 gsub(".",",",input$mark.limits[1],fixed = T)
+                                 ,"_up=",
+                                 gsub(".",",",input$mark.limits[2],fixed = T),
+                                 ".xlsx", sep="")
+                    print(A)
+                    A
                 },
                 content = function(file){
                     tryCatch({
-                        write.xlsx(result$params,file = as.character(file),sheetName = "Params",row.names = F)
-                        write.xlsx(result$adj.mat,as.character(file),sheetName = "Adj.Mat",append = T,row.names = T,col.names = T)
-                        write.xlsx(result$sim.down,as.character(file),sheetName = "Down",append = T,row.names = F)
-                        write.xlsx(result$sim.up,as.character(file),sheetName = "Up",append = T,row.names = F)
+                        print(as.character(file))
+                        print(result$params)
+                        #write.csv(result$params, file)
+                        # write.xlsx(result$params, file, asTable = T, sheetName = "Params",rowNames = F)
+                        # write.xlsx(as.data.frame(result$adj.mat),file, asTable = T,sheetName = "Adj_Mat",overwrite = F,rowNames = T,colNames = T)
+                        # write.xlsx(result$sim.down,file, asTable = T,sheetName = "Down",overwrite = F,rowNames = F)
+                        # write.xlsx(result$sim.up,file, asTable = T,sheetName = "Up",overwrite = F,rowNames = F)
+                        wb <- createWorkbook()
+                        
+                        # add worksheets ----------------------------------------------------------
+                        
+                        addWorksheet(wb, "Params")
+                        addWorksheet(wb, "Adj_Mat")
+                        addWorksheet(wb, "Down")
+                        addWorksheet(wb, "Up")
+                        
+                        writeData(wb, sheet = "Params", x = result$params)
+                        writeData(wb, sheet = "Adj_Mat", x = as.data.frame(result$adj.mat),rowNames = T)
+                        writeData(wb, sheet = "Down", x = result$sim.down)
+                        writeData(wb, sheet = "Up", x = result$sim.up)
+                        
+                        saveWorkbook(wb, file, overwrite = T)
                     },error = function(e){
                         shinyalert("Error",
                                    paste("Не могу сохранить результат, потому что ",e),
