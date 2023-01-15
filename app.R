@@ -24,7 +24,7 @@ ui <- tagList(
     navbarPage("MapClust",
         #rmarkdown::render("intro_rus.Rmd", rmarkdown::html_document(toc = TRUE,toc_float = T))
         tabPanel("Введение", fluidPage(htmlOutput("intro"))),
-        #rmarkdown::render("example_data_rus.Rmd", rmarkdown::html_document(toc = TRUE,toc_float = T))
+        #rmarkdown::render("example_data_rus.Rmd", rmarkdown::html_document()
         Example.UI(example.id),
         MonteCarlo.UI(monte.carlo.id),
         Main.UI(main.id)
