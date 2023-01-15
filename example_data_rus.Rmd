@@ -1,0 +1,57 @@
+---
+title: "Примеры данных"
+author: "Антон Смирнов"
+date: "2023-01-15"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    mathjax: "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Примеры датасетов
+
+На этой странице представлены готовые версии наборов данных, которые можно сразу использовать.
+
+## 1. Офицальная статистика по заболеваемости ВИЧ в РФ.
+
+Данные взяты с портала ЕМИСС с 2005 по 2016 год. Заболеваемость с впервые в жизни установленным диагнозом ВИЧ-инфекции на 100 тыс. человек населения. До 2014 Тюменская и Архангельская области --- с автономными округами.
+
+```{r, echo = FALSE}
+
+downloadHandler(
+    filename <- function() {
+    paste("HIV-RF", "zip", sep=".")
+  },
+
+  content <- function(file) {
+    file.copy("datasets/HIV-RF.zip", file)
+  },
+  contentType = "application/zip"
+)
+```
+
+## 2. Эпидемия кори в Румынии
+
+Данные по эпидемии кори в Румынии на конец 2018 года. Абсолютное количество случаев (Cases) и заболеваемость на 100000 населения (Incidence). Данные взяты из статьи *Dascalu S (2019) Measles Epidemics in Romania: Lessons for Public Health and Future Policy. Front. Public Health 7:98. doi: 10.3389/fpubh.2019.00098*
+
+```{r, echo = FALSE}
+
+downloadHandler(
+    filename <- function() {
+    paste("Measles-Rom", "zip", sep=".")
+  },
+
+  content <- function(file) {
+    file.copy("datasets/Measles-Rom.zip", file)
+  },
+  contentType = "application/zip"
+)
+```
