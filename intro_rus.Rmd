@@ -40,14 +40,14 @@ knitr::opts_chunk$set(echo = TRUE)
           \end{equation}
 
 -   Для сравнения моментов времени\begin{equation}p\_i = \\Phi (\\frac{O\^{t_1}\_i - O\^{t_2}\_i}{\\sqrt{O\^{t_1}\_i + O\^{t_2}\_i}})\\end{equation}
-
+-   $\Phi (z)$ - функция Лапласа    
 4.  Соприкасающиеся ячейки(группы), попадающие в диапазон $[0;p_{down}]$ - кластеры
 5.  Соприкасающиеся ячейки(группы), попадающие в диапазон $[p_{up};1]$ - разряжения
 6.  Статистика для разряжений \begin{equation*}
-        S_n = -2\sum_{k=1}^{n}\frac{p_k}{p_{down}}
+        S_n = -2\sum_{k=1}^{n}\ln{\frac{p_k}{p_{down}}}
         \end{equation*}
 7.  Статистика для кластеров \begin{equation*}
-        S_n = -2\sum_{k=1}^{n}\frac{1 - p_k}{1 - p_{up}}
+        S_n = -2\sum_{k=1}^{n}\ln{\frac{1 - p_k}{1 - p_{up}}}
         \end{equation*}
 8.  При справедливости $H_0$ справедливо \begin{equation*}S\_n \\sim \\chi\^{2}\_{2n}\\end{equation\*}
 
