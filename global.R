@@ -1,5 +1,6 @@
 library(leaflet)
 
+example.id = "ex"
 monte.carlo.id = "mc"
 main.id = "crit"
 init.lmbd = 20

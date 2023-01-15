@@ -15,7 +15,7 @@ source("mc_server.R", encoding = "UTF-8")
 source("global.R", encoding = "UTF-8")
 source("main_ui.R", encoding = "UTF-8")
 source("main_server.R", encoding = "UTF-8")
-
+source("Example.R", encoding = "UTF-8")
 
 
 # Define UI for application that draws a histogram
@@ -25,7 +25,7 @@ ui <- tagList(
         #rmarkdown::render("intro_rus.Rmd", rmarkdown::html_document(toc = TRUE,toc_float = T))
         tabPanel("Введение", fluidPage(htmlOutput("intro"))),
         #rmarkdown::render("example_data_rus.Rmd", rmarkdown::html_document(toc = TRUE,toc_float = T))
-        tabPanel("Примеры данных", fluidPage(htmlOutput("example_data"))),
+        Example.UI(example.id),
         MonteCarlo.UI(monte.carlo.id),
         Main.UI(main.id)
     )
@@ -34,7 +34,7 @@ ui <- tagList(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     output$intro<-renderUI({includeHTML("intro_rus.html")})
-    output$example_data = renderUI({includeHTML("example_data_rus.html")})
+    Example.Server(example.id)
     MonteCarlo.Server(monte.carlo.id)
     Main.Server(main.id)
 }
