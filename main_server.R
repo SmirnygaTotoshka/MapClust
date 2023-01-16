@@ -107,7 +107,7 @@ Main.Server <- function(id) {
                     copy.map()@data$NAME_0[row()],
                     copy.map()@data$NAME_1[row()],
                     copy.map()@data$GID_1[row()],
-                    "(Разница)",
+                    "P(Разница)",
                     "=",
                     copy.map()@data$P[row()]
                 )
