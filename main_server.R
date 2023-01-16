@@ -103,22 +103,22 @@ Main.Server <- function(id) {
             output$dif.print = renderText({
                 req(row() > 0)
                 paste(
-                    "P-value для",
+                    "P для",
                     copy.map()@data$NAME_0[row()],
                     copy.map()@data$NAME_1[row()],
                     copy.map()@data$GID_1[row()],
                     "(Разница)",
                     "=",
-                    copy.map()@data$P.VALUE[row()]
+                    copy.map()@data$P[row()]
                 )
             })
             
             output$first.pvalue = renderText({
                 req(row() > 0)
                 paste(
-                    "P-value(1 момент)",
+                    "P(1 момент)",
                     "=",
-                    copy.map()@data$P.VALUE1[row()]
+                    copy.map()@data$P1[row()]
                 )    
                 
             })
@@ -126,9 +126,9 @@ Main.Server <- function(id) {
             output$second.pvalue = renderText({
                 req(row() > 0)
                 paste(
-                    "P-value(2 момент)",
+                    "P(2 момент)",
                     "=",
-                    copy.map()@data$P.VALUE2[row()]
+                    copy.map()@data$P2[row()]
                 )    
             })
             
@@ -207,7 +207,7 @@ Main.Server <- function(id) {
                     )
                 ) %>% 
                     addLegend(pal = p,
-                              title = "P-Value",
+                              title = "P",
                               values = copy.map()@data[,render.col()],
                               layerId = "Legend") %>% 
                         fitBounds(min(coords[,1]),min(coords[,2]),max(coords[,1]),max(coords[,2]))
@@ -342,13 +342,13 @@ Main.Server <- function(id) {
             observeEvent(input$representation,{
                 req(copy.map())
                 if(input$representation == "Разница"){
-                    render.col(match("P.VALUE", colnames(copy.map()@data))[1])
+                    render.col(match("P", colnames(copy.map()@data))[1])
                 }
                 else if(input$representation == "Первый момент"){
-                    render.col(match("P.VALUE1", colnames(copy.map()@data))[1])
+                    render.col(match("P1", colnames(copy.map()@data))[1])
                 }
                 else if(input$representation == "Второй момент"){
-                    render.col(match("P.VALUE2", colnames(copy.map()@data))[1])
+                    render.col(match("P2", colnames(copy.map()@data))[1])
                 }
             })
             
@@ -367,10 +367,10 @@ Main.Server <- function(id) {
                     first.time = as.numeric(data@data[,obs.columns$first])
                     m1 = mean(first.time,na.rm = T)
                     data@data$X1 = (first.time - m1) / sqrt(m1)
-                    data@data$P.VALUE1 = pnorm(data@data$X1,lower.tail = F)
+                    data@data$P1 = pnorm(data@data$X1,lower.tail = F)
 
                     if(input$representation == "Первый момент")
-                        render.col(match("P.VALUE1", colnames(data@data))[1])
+                        render.col(match("P1", colnames(data@data))[1])
                     copy.map(data)
                 }
             })
@@ -390,10 +390,10 @@ Main.Server <- function(id) {
                     second.time = as.numeric(data@data[,obs.columns$second])
                     m2 = mean(second.time,na.rm = T)
                     data@data$X2 = (second.time - m2) / sqrt(m2)
-                    data@data$P.VALUE2 = pnorm(data@data$X2,lower.tail = F)
+                    data@data$P2 = pnorm(data@data$X2,lower.tail = F)
 
                     if(input$representation == "Второй момент")
-                        render.col(match("P.VALUE2", colnames(data@data))[1])
+                        render.col(match("P2", colnames(data@data))[1])
                     copy.map(data)
                 }
             })
@@ -416,10 +416,10 @@ Main.Server <- function(id) {
                       second.time = as.numeric(data@data[,obs.columns$second])
                                          
                       data@data$X = (first.time - second.time) / (sqrt(first.time + second.time))
-                      data@data$P.VALUE = pnorm(data@data$X,lower.tail = F)
+                      data@data$P = pnorm(data@data$X,lower.tail = F)
                       print(input$representation)
                       if(input$representation == "Разница")
-                          render.col(match("P.VALUE", colnames(data@data))[1])
+                          render.col(match("P", colnames(data@data))[1])
 
                       copy.map(data)
                     }
