@@ -103,11 +103,11 @@ Main.Server <- function(id) {
             output$dif.print = renderText({
                 req(row() > 0)
                 paste(
-                    "P-value для",
+                    "P для",
                     copy.map()@data$NAME_0[row()],
                     copy.map()@data$NAME_1[row()],
                     copy.map()@data$GID_1[row()],
-                    "(Разница)",
+                    "P(Разница)",
                     "=",
                     copy.map()@data$P.VALUE[row()]
                 )
@@ -116,7 +116,7 @@ Main.Server <- function(id) {
             output$first.pvalue = renderText({
                 req(row() > 0)
                 paste(
-                    "P-value(1 момент)",
+                    "P(1 момент)",
                     "=",
                     copy.map()@data$P.VALUE1[row()]
                 )    
@@ -126,7 +126,7 @@ Main.Server <- function(id) {
             output$second.pvalue = renderText({
                 req(row() > 0)
                 paste(
-                    "P-value(2 момент)",
+                    "P(2 момент)",
                     "=",
                     copy.map()@data$P.VALUE2[row()]
                 )    
@@ -207,7 +207,7 @@ Main.Server <- function(id) {
                     )
                 ) %>% 
                     addLegend(pal = p,
-                              title = "P-Value",
+                              title = "P",
                               values = copy.map()@data[,render.col()],
                               layerId = "Legend") %>% 
                         fitBounds(min(coords[,1]),min(coords[,2]),max(coords[,1]),max(coords[,2]))
