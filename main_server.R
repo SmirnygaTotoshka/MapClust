@@ -367,7 +367,7 @@ Main.Server <- function(id) {
                     first.time = as.numeric(data@data[,obs.columns$first])
                     m1 = mean(first.time,na.rm = T)
                     data@data$X1 = (first.time - m1) / sqrt(m1)
-                    data@data$P1 = pnorm(data@data$X1,lower.tail = F)
+                    data@data$P1 = pnorm(data@data$X1)
 
                     if(input$representation == "Первый момент")
                         render.col(match("P1", colnames(data@data))[1])
@@ -390,7 +390,7 @@ Main.Server <- function(id) {
                     second.time = as.numeric(data@data[,obs.columns$second])
                     m2 = mean(second.time,na.rm = T)
                     data@data$X2 = (second.time - m2) / sqrt(m2)
-                    data@data$P2 = pnorm(data@data$X2,lower.tail = F)
+                    data@data$P2 = pnorm(data@data$X2)
 
                     if(input$representation == "Второй момент")
                         render.col(match("P2", colnames(data@data))[1])
@@ -416,7 +416,7 @@ Main.Server <- function(id) {
                       second.time = as.numeric(data@data[,obs.columns$second])
                                          
                       data@data$X = (first.time - second.time) / (sqrt(first.time + second.time))
-                      data@data$P = pnorm(data@data$X,lower.tail = F)
+                      data@data$P = pnorm(data@data$X)
                       print(input$representation)
                       if(input$representation == "Разница")
                           render.col(match("P", colnames(data@data))[1])
