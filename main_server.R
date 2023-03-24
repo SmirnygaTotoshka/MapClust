@@ -6,6 +6,7 @@ library(plotly)
 library(igraph)
 library(surveillance)
 library(sf)
+library(stringr)
 Main.Server <- function(id) {
     moduleServer(
         id,
@@ -23,6 +24,14 @@ Main.Server <- function(id) {
                 adj.mat = NULL,
                 sim.down = NULL,
                 sim.up = NULL
+            )
+            #-1 - not start
+            #0 - no discharges/clusters
+            #1 - has discharges/clusters but they are not significant
+            #2 - has significant discharges/clusters
+            has.result = reactiveValues(
+                discharges = -1,
+                clusters = -1
             )
             
             #Final results
@@ -353,6 +362,76 @@ Main.Server <- function(id) {
                 }
             })
             
+            renderResult = eventReactive(input$representation_map,{
+                req(has.result$discharges >= 0 | has.result$clusters >= 0)
+                message = ""
+                if(input$representation_map == "Разряжения"){
+                    if (has.result$discharges == 0){
+                        message = "Разряжения не найдены."
+                    }
+                    else if (has.result$discharges == 1){
+                        message = "Разряжения найдены, но статистически не значимы"
+                    }
+                    
+                    if (has.result$discharges == 2){
+                        buf = isolate(copy.map())
+                        for (i in seq_len(nrow(signif.result$discharges))) {
+                            reg.id = str_replace_all(str_split(signif.result$discharges[i,"Label"], ";"), " ", "")
+                            region = buf[which(buf@data$GID_1 %in% reg.id),]
+                            #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                            union.dis = surveillance::unionSpatialPolygons(region)
+                            proxy %>% removeShape("clusters") %>% 
+                                addPolylines(
+                                    data = union.dis,
+                                    layerId = "discharges",
+                                    color = "blue",
+                                    weight = 5,
+                                    opacity = 1
+                                )
+                        }
+                    }
+                    else{
+                        shinyalert("Result",
+                                   message,
+                                   type = "info"
+                        )
+                    }
+                }
+                else{
+                    if (has.result$clusters == 0){
+                        message = "Кластеры не найдены."
+                    }
+                    else if (has.result$clusters == 1){
+                        message = "Кластеры найдены, но статистически не значимы"
+                    }
+                    
+                    if (has.result$clusters == 2){
+                        buf = isolate(copy.map())
+                        for (i in seq_len(nrow(signif.result$clusters))) {
+                            reg.id = str_replace_all(str_split(signif.result$clusters[i,"Label"], "; "), " ", "")
+                            region = buf[which(buf@data$GID_1 %in% reg.id),]
+                            #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                            union.dis = surveillance::unionSpatialPolygons(region)
+                            proxy %>% removeShape("discharges") %>% 
+                                addPolylines(
+                                    data = union.dis,
+                                    layerId = "clusters",
+                                    color = "blue",
+                                    weight = 5,
+                                    opacity = 1
+                                )
+                        }
+                    }
+                    else{
+                        shinyalert("Result",
+                                   message,
+                                   type = "info"
+                        )
+                    }
+                }
+
+            })
+            
             
             calc.first.moment = eventReactive(copy.map()@data[,obs.columns$first],
                 {
@@ -614,8 +693,8 @@ Main.Server <- function(id) {
                 #0 - no discharges/clusters
                 #1 - has discharges/clusters but they are not significant
                 #2 - has significant discharges/clusters
-                has.discharges = 0
-                has.clusters = 0
+                has.result$discharges = 0
+                has.result$clusters = 0
                 p.down = isolate(monte.carlo$params)[1,"Probabilities"]
                 p.up = isolate(monte.carlo$params)[2,"Probabilities"]
                 sim.up = as.data.frame(isolate(monte.carlo$sim.up))
@@ -640,7 +719,7 @@ Main.Server <- function(id) {
                         clusters = igraph::groups(comps)
                         print(clusters)
                         if(length(clusters) > 0){
-                            has.clusters = 1
+                            has.result$discharges = 1
                             s = sapply(clusters,s.n.down,p = p.down, data = buf)
                             sizes = sapply(clusters, length)
                             cls = as.data.frame(table(sizes))
@@ -662,23 +741,9 @@ Main.Server <- function(id) {
                             print("Significant discharges")
                             print(signif.dis)
                             if(nrow(signif.dis) > 0){
-                                has.clusters = 2
-                                #colours = cluster.color(nrow(signif.clust))
-                                for (i in signif.dis$ID) {
-                                    region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
-                                    #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
-                                    union.clust = surveillance::unionSpatialPolygons(region)
-                                    proxy %>%
-                                        addPolylines(
-                                                data = union.clust,
-                                                layerId = paste0("clusters",i),
-                                                color = "blue",
-                                                weight = 5,
-                                                opacity = 1
-                                            )
-                                    }
-                                }
+                                has.result$discharges = 2
                             }
+                        }
                     }
                     print("-----------------------------------------------------")
                     }
@@ -701,7 +766,7 @@ Main.Server <- function(id) {
                             clusters = igraph::groups(comps)
                             print(clusters)
                             if(length(clusters) > 0){
-                                has.discharges = 1
+                                has.result$clusters = 1
                                 s = sapply(clusters,s.n.up,p = p.up, data = buf)
                                 sizes = sapply(clusters, length)
                                 cls = as.data.frame(table(sizes))
@@ -722,43 +787,13 @@ Main.Server <- function(id) {
                                 print("Significant clusters")
                                 print(signif.clust)
                                 if(nrow(signif.clust) > 0){
-                                    has.discharges = 2
-                                    #colours = cluster.color(nrow(signif.dis))
-                                    for (i in signif.clust$ID) {
-                                        region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
-                                        #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
-                                        union = surveillance::unionSpatialPolygons(region)
-                                        proxy %>%
-                                            addPolylines(
-                                                data = union,
-                                                layerId = paste0("clusters",i),
-                                                color = "black",
-                                                weight = 5,
-                                                opacity = 1
-                                            )
-                                    }
+                                    has.result$clusters = 2
                                 }
-
                                 print("-----------------------------------------------------")
                             }
                         }
-                    }
-                    
-                message = ""
-                if(has.discharges == 0 && has.clusters == 0){
-                    message = "Разряжения и кластеры не найдены."
                 }
-                else if(has.discharges == 1 || has.clusters == 1){
-                    insertion = ifelse(has.discharges == 1 && has.clusters == 1, "Разряжения и кластеры",
-                                       ifelse(has.discharges == 1, "Разряжения", "Кластеры"))
-                    message = paste(insertion,"найдены, но статистически не значимы")
-                }
-                if(has.discharges != 2 && has.clusters != 2){
-                    shinyalert("Result",
-                                   message,
-                                   type = "info"
-                    )
-                }
+                renderResult()
                 enable("save_res")
             })
 
@@ -825,7 +860,8 @@ Main.Server <- function(id) {
                 #Only for statistically significant results
                 signif.result$discharges = NULL
                 signif.result$clusters = NULL
-                
+                has.result$clusters = -1
+                has.result$discharges = -1
                 
                 calc.dif()
                 calc.first.moment() 

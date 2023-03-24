@@ -8,7 +8,8 @@ Main.UI = function(id, label = "Критерий"){
                      verticalLayout(
                            wellPanel(fileInput(crit("ogr_dir"), label = "Карта", multiple = T),
                                      fileInput(crit("mc_res"), "Загрузить результат симуляции", buttonLabel = "Файл .xlsx", accept = ".xlsx")),
-                           wellPanel(selectInput(crit("representation"),"Режим отображения",choices = c("Первый момент","Второй момент","Разница"),selected = "Разница"),
+                           wellPanel(selectInput(crit("representation"),"Режим отображения данных",choices = c("Первый момент","Второй момент","Разница"),selected = "Разница"),
+                                     selectInput(crit("representation_map"),"Режим отображения результатов",choices = c("Разряжения","Кластеры"),selected = "Кластеры")
                                      #actionButton(crit("check.alpha"),"Проверить ошибку первого рода")
                                      ),
                          sliderInput(crit("alpha"), "Ошибка первого рода", min = 0.001,max = 0.1, step = 0.001, value = 0.05),
