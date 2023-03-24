@@ -143,7 +143,7 @@ Main.Server <- function(id) {
                         wb <- createWorkbook()
                         
                         # add worksheets ----------------------------------------------------------
-                        
+                        addWorksheet(wb, "Data")
                         addWorksheet(wb, "Discharges")
                         addWorksheet(wb, "Clusters")
                         addWorksheet(wb, "Crit_Down")
@@ -151,6 +151,7 @@ Main.Server <- function(id) {
                         addWorksheet(wb, "Adj_Mat")
                         addWorksheet(wb, "Params")
                         
+                        writeData(wb, sheet = "Data", x = copy.map()@data)
                         writeData(wb, sheet = "Params", x = result$params)
                         writeData(wb, sheet = "Adj_Mat", x = as.data.frame(result$adj.mat),rowNames = T)
                         writeData(wb, sheet = "Down", x = result$sim.down)
@@ -158,7 +159,7 @@ Main.Server <- function(id) {
                         
                         if(!is.null(result$discharges)){
                             writeData(wb, sheet = "Discharges", x = result$discharges)
-                            write.xlsx(result$discharges,file = file,sheetName = "Discharges")
+                            #write.xlsx(result$discharges,file = file,sheetName = "Discharges")
                         }
                         if(!is.null(result$clusters)){
                             writeData(wb, sheet = "Clusters", x = result$clusters)
