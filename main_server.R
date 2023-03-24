@@ -836,43 +836,6 @@ Main.Server <- function(id) {
                 render.col(tmp)
 
             })
-
-            # observeEvent(input$save_res,ignoreInit = T,{
-            #     if (is.integer(input$save_res)) {
-            #         cat("No file has been selected (shinyResSave)\n")
-            #     }
-            #     else {
-            #         tryCatch({
-            #                     path = parseDirPath(volumes, input$save_res)
-            #                     rgdal::writeOGR(copy.map(),path, "map", driver="ESRI Shapefile",encoding = "UTF-8")
-            #                     tbl.path = file.path(path, paste0("result_","alpha=",input$alpha,".xlsx"))
-            #                     if(!is.null(result$discharges)){
-            #                         write.xlsx(result$discharges,file = tbl.path,sheetName = "Discharges")
-            #                     }
-            #                     if(!is.null(result$clusters)){
-            #                         write.xlsx(result$clusters,file = tbl.path,sheetName = "Clusters",append = T)
-            #                     }
-            #                     if(!is.null(monte.carlo$sim.down)){
-            #                         write.xlsx(monte.carlo$sim.down,file = tbl.path,sheetName = "Crit_Down",append = T)
-            #                     }
-            #                     if(!is.null(monte.carlo$sim.up)){
-            #                         write.xlsx(monte.carlo$sim.up,file = tbl.path,sheetName = "Crit_Up",append = T)
-            #                     }
-            #                     if(!is.null(monte.carlo$adj.mat)){
-            #                         write.xlsx(monte.carlo$adj.mat,file = tbl.path,sheetName = "Adj_Mat",append = T)
-            #                     }
-            #                     if(!is.null(monte.carlo$params)){
-            #                         write.xlsx(monte.carlo$params,file = tbl.path,sheetName = "Params",append = T)
-            #                     }
-            #         },error = function(e){
-            #             shinyalert("Error",
-            #                        paste("Не могу сохранить результат, потому что ",e),
-            #                        type = "error"
-            #             )
-            #         })
-            # 
-            #     }
-            # })
         }
     )
 }
