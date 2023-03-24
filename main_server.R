@@ -629,7 +629,7 @@ Main.Server <- function(id) {
                     print("Search clusters")
 
                     s.n.down = function(x, p, data){
-                        return(-2 * sum(log(data@data[which(data@data$GID_1 %in% x),render.col()]+0.000001 / p)))
+                        return(-2 * sum(log((data@data[which(data@data$GID_1 %in% x),render.col()]+0.0001) / p)))
                     }
 
                     buf = isolate(copy.map())
@@ -690,7 +690,7 @@ Main.Server <- function(id) {
                         
 
                         s.n.up = function(x, p, data){
-                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x)-0.000001,render.col()]) / (1 - p)))))
+                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x),render.col()]-0.0001) / (1 - p)))))
                         }
 
                         buf = isolate(copy.map())
