@@ -44,8 +44,8 @@ Main.UI = function(id, label = "Критерий"){
                  mainPanel(
                      tabsetPanel(
                          tabPanel("Карта", leafletOutput(crit("map"),height=600), plotlyOutput(crit("val_distr")), tableOutput(crit("val"))),
-                         tabPanel("Кластеры",plotlyOutput(crit("down_crit_reg")),tableOutput(crit("down_stat"))),
-                         tabPanel("Разряжения",plotlyOutput(crit("up.crit.reg")),tableOutput(crit("up.stat")))
+                         tabPanel("Разряжения",plotlyOutput(crit("down_crit_reg")),tableOutput(crit("down_stat"))),
+                         tabPanel("Кластеры",plotlyOutput(crit("up.crit.reg")),tableOutput(crit("up.stat")))
                      )
                  )
              )

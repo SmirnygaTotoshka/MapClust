@@ -19,11 +19,11 @@ MonteCarlo.UI = function(id, label = "Monte Carlo"){
                  #+ Show a plot of the generated distribution
                  mainPanel(
                      tabsetPanel(
-                         tabPanel("Нижняя граница", 
+                         tabPanel("Разряжения", 
                                   plotlyOutput(mc("down_PDF")),
                                   plotlyOutput(mc("down_alpha")),
                                   tableOutput(mc("down_table"))),
-                         tabPanel("Верхняя граница", 
+                         tabPanel("Кластеры", 
                                   plotlyOutput(mc("up.PDF")),
                                   plotlyOutput(mc("up.alpha")),
                                   tableOutput(mc("up.table")))

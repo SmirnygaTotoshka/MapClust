@@ -66,25 +66,6 @@ Main.Server <- function(id) {
                 monte.carlo$sim.down = monte.carlo$sim.down[order(monte.carlo$sim.down$Size),]
                     
                 fig = plot_ly(monte.carlo$sim.down, x = ~Size, y = ~S.crit,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Критическая область") %>%
-                    layout(xaxis = list(title="Размер"),yaxis = list(title="Статистика"),title="Кластеры")
-                if (!is.null(result$clusters)){
-                    fig = fig %>%
-                        add_trace(data = result$clusters,x = ~N,y = ~S, name = 'Все', mode = 'markers',color = I("green"), size = 3, text = ~Label)%>%
-                        add_trace(data = signif.result$clusters,x = ~N,y = ~S, name = 'Значимые', mode = 'markers',color = I("blue"), size = 3, text = ~Label)
-                }
-                fig
-            })
-            
-            output$down_stat = renderTable({
-                validate(need(!is.null(result$clusters),"Отстутствует результат."))
-                result$clusters
-            },digits = 4)
-
-            output$up.crit.reg = renderPlotly({
-                validate(need(!is.na(monte.carlo$sim.up$S.crit),"Отстутствует критическая область."))
-                monte.carlo$sim.up = monte.carlo$sim.up[order(monte.carlo$sim.up$Size),]
-                
-                fig = plot_ly(monte.carlo$sim.up, x = ~Size, y = ~S.crit,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Критическая область") %>%
                     layout(xaxis = list(title="Размер"),yaxis = list(title="Статистика"),title="Разряжения")
                 if (!is.null(result$discharges)){
                     fig = fig %>%
@@ -94,9 +75,28 @@ Main.Server <- function(id) {
                 fig
             })
             
-            output$up.stat = renderTable({
+            output$down_stat = renderTable({
                 validate(need(!is.null(result$discharges),"Отстутствует результат."))
                 result$discharges
+            },digits = 4)
+
+            output$up.crit.reg = renderPlotly({
+                validate(need(!is.na(monte.carlo$sim.up$S.crit),"Отстутствует критическая область."))
+                monte.carlo$sim.up = monte.carlo$sim.up[order(monte.carlo$sim.up$Size),]
+                
+                fig = plot_ly(monte.carlo$sim.up, x = ~Size, y = ~S.crit,type = 'scatter', mode = 'lines+markers',color = I("black"),name = "Критическая область") %>%
+                    layout(xaxis = list(title="Размер"),yaxis = list(title="Статистика"),title="Кластеры")
+                if (!is.null(result$clusters)){
+                    fig = fig %>%
+                        add_trace(data = result$clusters,x = ~N,y = ~S, name = 'Все', mode = 'markers',color = I("green"), size = 3, text = ~Label)%>%
+                        add_trace(data = signif.result$clusters,x = ~N,y = ~S, name = 'Значимые', mode = 'markers',color = I("blue"), size = 3, text = ~Label)
+                }
+                fig
+            })
+            
+            output$up.stat = renderTable({
+                validate(need(!is.null(result$clusters),"Отстутствует результат."))
+                result$clusters
             },digits = 4)
             
         
@@ -625,7 +625,7 @@ Main.Server <- function(id) {
                 print(paste("Probability limits = [",p.down,";",p.up,"]"))
                 if(p.down > 0 && p.down < 1)
                 {
-                    print("Search clusters")
+                    print("Search discharges")
 
                     s.n.down = function(x, p, data){
                         return(-2 * sum(log((data@data[which(data@data$GID_1 %in% x),render.col()]+0.0001) / p)))
@@ -644,27 +644,27 @@ Main.Server <- function(id) {
                             s = sapply(clusters,s.n.down,p = p.down, data = buf)
                             sizes = sapply(clusters, length)
                             cls = as.data.frame(table(sizes))
-                            data.clusters = data.frame(ID = names(s),N = sizes,S = s)
-                            #names(clusters) = data.clusters$ID
+                            data.discharges = data.frame(ID = names(s),N = sizes,S = s)
+                            #names(clusters) = data.discharges$ID
 
-                            for (j in 1:nrow(data.clusters)) {
-                                nearest = which.min(abs(sim.down$Size - data.clusters$N[j]))
-                                data.clusters$S.crit[j] = sim.down[nearest,"S.crit"]
-                                data.clusters$Label[j] = paste(clusters[[as.character(data.clusters$ID[j])]],collapse = "; ")
-                                data.clusters$Names[j] = paste(buf@data$NAME_1[which(buf@data$GID_1 %in% clusters[[as.character(data.clusters$ID[j])]])],collapse = "; ")
+                            for (j in 1:nrow(data.discharges)) {
+                                nearest = which.min(abs(sim.down$Size - data.discharges$N[j]))
+                                data.discharges$S.crit[j] = sim.down[nearest,"S.crit"]
+                                data.discharges$Label[j] = paste(clusters[[as.character(data.discharges$ID[j])]],collapse = "; ")
+                                data.discharges$Names[j] = paste(buf@data$NAME_1[which(buf@data$GID_1 %in% clusters[[as.character(data.discharges$ID[j])]])],collapse = "; ")
                             }
-                            result$clusters = data.clusters
-                            print("Data clusters")
-                            print(data.clusters)
+                            result$discharges = data.discharges
+                            print("Data discharges")
+                            print(data.discharges)
                             n.crit = sim.down$Size[which.min(sim.down$distToCrit)]
-                            signif.clust = data.clusters[data.clusters$N >= n.crit | data.clusters$S >= data.clusters$S.crit,]
-                            signif.result$clusters = signif.clust
-                            print("Significant clusters")
-                            print(signif.clust)
-                            if(nrow(signif.clust) > 0){
+                            signif.dis = data.discharges[data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.crit,]
+                            signif.result$discharges = signif.dis
+                            print("Significant discharges")
+                            print(signif.dis)
+                            if(nrow(signif.dis) > 0){
                                 has.clusters = 2
                                 #colours = cluster.color(nrow(signif.clust))
-                                for (i in signif.clust$ID) {
+                                for (i in signif.dis$ID) {
                                     region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
                                     #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                     union.clust = surveillance::unionSpatialPolygons(region)
@@ -685,7 +685,7 @@ Main.Server <- function(id) {
 
                 if(p.up > 0 && p.up < 1)
                 {
-                        print("Search discharges")
+                        print("Search clusters")
                         
 
                         s.n.up = function(x, p, data){
@@ -705,26 +705,26 @@ Main.Server <- function(id) {
                                 s = sapply(clusters,s.n.up,p = p.up, data = buf)
                                 sizes = sapply(clusters, length)
                                 cls = as.data.frame(table(sizes))
-                                data.discharges = data.frame(ID = names(s),N = sizes,S = s)
-                                for (j in 1:nrow(data.discharges)) {
-                                    nearest = which.min(abs(sim.up$Size - data.discharges$N[j]))
-                                    data.discharges$S.crit[j] = sim.up[nearest,"S.crit"]
-                                    data.discharges$Label[j] = paste(clusters[[as.character(data.discharges$ID[j])]],collapse = "; ")
-                                    data.discharges$Names[j] = paste(buf@data$NAME_1[which(buf@data$GID_1 %in% clusters[[as.character(data.discharges$ID[j])]])],collapse = "; ")
+                                data.clusters = data.frame(ID = names(s),N = sizes,S = s)
+                                for (j in 1:nrow(data.clusters)) {
+                                    nearest = which.min(abs(sim.up$Size - data.clusters$N[j]))
+                                    data.clusters$S.crit[j] = sim.up[nearest,"S.crit"]
+                                    data.clusters$Label[j] = paste(clusters[[as.character(data.clusters$ID[j])]],collapse = "; ")
+                                    data.clusters$Names[j] = paste(buf@data$NAME_1[which(buf@data$GID_1 %in% clusters[[as.character(data.clusters$ID[j])]])],collapse = "; ")
 
                                 }
-                                result$discharges = data.discharges
-                                print("Data discharges")
-                                print(data.discharges)
+                                result$clusters = data.clusters
+                                print("Data clusters")
+                                print(data.clusters)
                                 n.crit = sim.up$Size[which.min(sim.up$distToCrit)]
-                                signif.dis = data.discharges[data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.crit,]
-                                signif.result$discharges = signif.dis
-                                print("Significant discharges")
-                                print(signif.dis)
-                                if(nrow(signif.dis) > 0){
+                                signif.clust = data.clusters[data.clusters$N >= n.crit | data.clusters$S >= data.clusters$S.crit,]
+                                signif.result$clusters = signif.clust
+                                print("Significant clusters")
+                                print(signif.clust)
+                                if(nrow(signif.clust) > 0){
                                     has.discharges = 2
                                     #colours = cluster.color(nrow(signif.dis))
-                                    for (i in signif.dis$ID) {
+                                    for (i in signif.clust$ID) {
                                         region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
                                         #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
                                         union = surveillance::unionSpatialPolygons(region)

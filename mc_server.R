@@ -134,7 +134,7 @@ MonteCarlo.Server <- function(id) {
                                     comps <- components(graph)
                                     clusters = igraph::groups(comps)
                                     sizes = sapply(clusters, length)
-                                    print(paste("Num discharges =",length(sizes)))
+                                    print(paste("Num clusters =",length(sizes)))
                                     
                                     if (length(sizes) == 0) {
                                         max.clust.size[nrow(max.clust.size) + 1, 1] = 0
@@ -207,7 +207,7 @@ MonteCarlo.Server <- function(id) {
                                     comps <- components(graph)
                                     clusters = igraph::groups(comps)
                                     sizes = sapply(clusters, length)
-                                    print(paste("Num clusters =",length(sizes)))
+                                    print(paste("Num discharges =",length(sizes)))
                                     
                                     if (length(sizes) == 0) {
                                         max.clust.size[nrow(max.clust.size) + 1, 1] = 0
@@ -325,7 +325,7 @@ MonteCarlo.Server <- function(id) {
                 # ggplot(result$sim.down) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
                 #     labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
                 fig = plot_ly(result$sim.down, x = ~Size, y = ~MeanProbabilities,type = 'bar',color = I("blue"), alpha = 0.85) %>%
-                    layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение размеров кластеров")
+                    layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение размеров разряжений")
                 fig
             })
             
@@ -335,7 +335,7 @@ MonteCarlo.Server <- function(id) {
                  # ggplot(result$sim.down) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
                  #     labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
                  fig = plot_ly(result$sim.down, x = ~Size, y = ~PMaxNGreaterNi,type = 'bar',color = I("blue"), alpha = 0.85) %>%
-                     layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение максимального размера кластеров")
+                     layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение максимального размера разряжений")
                  fig
             })
                         
@@ -351,7 +351,7 @@ MonteCarlo.Server <- function(id) {
                 #     ggplot(result$sim.up) + geom_col(aes(x = Size, y = MeanProbabilities), alpha = 0.85) +
                 #         labs(x = "Size of cluster(number of regions)", y = "Probability", title = "Clusters size distribution")
                 fig = plot_ly(result$sim.up, x = ~Size, y = ~MeanProbabilities,type = 'bar',color = I("blue"), alpha = 0.85) %>%
-                    layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение размеров разряжений")
+                    layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение размеров кластеров")
                 fig
             })
             
@@ -361,7 +361,7 @@ MonteCarlo.Server <- function(id) {
                 # ggplot(result$sim.up) + geom_col(aes(x = Size, y = PMaxNGreaterNi), alpha = 0.85) +
                 #     labs(x = "Maximal size of cluster(number of regions)", y = "Probability", title = "Maximal clusters size distribution")
                 fig = plot_ly(result$sim.up, x = ~Size, y = ~PMaxNGreaterNi,type = 'bar',color = I("blue"), alpha = 0.85) %>%
-                    layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение максимального размера разряжений")
+                    layout(xaxis = list(title="Размер"),yaxis = list(title="Вероятность"),title="Распределение максимального размера кластеров")
                 fig
             })
             
