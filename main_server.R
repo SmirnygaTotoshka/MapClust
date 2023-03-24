@@ -99,8 +99,7 @@ Main.Server <- function(id) {
                 result$discharges
             },digits = 4)
             
-        }
-        fig
+        
             output$dif.print = renderText({
                 req(row() > 0)
                 paste(
