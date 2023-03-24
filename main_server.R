@@ -689,7 +689,7 @@ Main.Server <- function(id) {
                         
 
                         s.n.up = function(x, p, data){
-                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x),render.col()]-0.0001) / (1 - p)))))
+                            return(-2 * sum((log((1 - data@data[which(data@data$GID_1 %in% x),render.col()]+0.0001) / (1 - p)))))
                         }
 
                         buf = isolate(copy.map())
