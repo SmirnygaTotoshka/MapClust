@@ -23,7 +23,12 @@ Example.UI = function(id, label = "Примеры данных"){
 
                "
         ),
-        downloadButton(ex("measles.download"))
+        downloadButton(ex("measles.download")),
+        HTML('
+            <h2> 3. Содержание частиц диаметром 10 микрометров и меньше в воздухе. Румыния.</h2>
+            <p>Данные взяты с сайта <a href="https://discomap.eea.europa.eu/App/AirQualityStatistics/index.html">Европейского агенства по окружающей среде</a>. Данные за 2018 и 2021 год.</p>'
+        ),
+        downloadButton(ex("pm10.rou")),
       )))
 }
 
@@ -42,6 +47,12 @@ Example.Server <- function(id) {
               filename <- function() {paste("Measles-Rom", "zip", sep=".")},
               content <- function(file) {file.copy("datasets/Measles-Rom.zip", file)},
               contentType = "application/zip"
+            )
+            
+            output$pm10.rou = downloadHandler(
+                filename <- function() {paste("pm10.rou", "zip", sep=".")},
+                content <- function(file) {file.copy("datasets/PM10_ROU.zip", file)},
+                contentType = "application/zip"
             )
         }
     )
