@@ -10,6 +10,7 @@
 library(shiny)
 Sys.setlocale(category = "LC_ALL", locale = "ru_RU.UTF-8")
 options(shiny.maxRequestSize=100*1024^2)
+#options(shiny.error = browser)#for debug
 source("mc_ui.R", encoding = "UTF-8")
 source("mc_server.R", encoding = "UTF-8")
 source("global.R", encoding = "UTF-8")

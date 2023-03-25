@@ -53,6 +53,6 @@ annotations = list(
         yshift = -10,
         showarrow = FALSE 
     ))
-fig = subplot(fig1,fig2,shareX = T, shareY = T) %>%  layout(annotations = annotations)
+fig = subplot(fig1,fig2,shareX = T, shareY = T) %>%  layout(annotations = annotations, title = 'ВИЧ РФ 2005 год')
 fig
 

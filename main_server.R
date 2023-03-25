@@ -362,74 +362,16 @@ Main.Server <- function(id) {
                 }
             })
             
-            renderResult = eventReactive(input$representation_map,{
-                req(has.result$discharges >= 0 | has.result$clusters >= 0)
-                message = ""
+            observeEvent(input$representation_map,{
+                
                 if(input$representation_map == "Разряжения"){
-                    if (has.result$discharges == 0){
-                        message = "Разряжения не найдены."
-                    }
-                    else if (has.result$discharges == 1){
-                        message = "Разряжения найдены, но статистически не значимы"
-                    }
-                    
-                    if (has.result$discharges == 2){
-                        buf = isolate(copy.map())
-                        for (i in seq_len(nrow(signif.result$discharges))) {
-                            reg.id = str_replace_all(str_split(signif.result$discharges[i,"Label"], ";"), " ", "")
-                            region = buf[which(buf@data$GID_1 %in% reg.id),]
-                            #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
-                            union.dis = surveillance::unionSpatialPolygons(region)
-                            proxy %>% removeShape("clusters") %>% 
-                                addPolylines(
-                                    data = union.dis,
-                                    layerId = "discharges",
-                                    color = "blue",
-                                    weight = 5,
-                                    opacity = 1
-                                )
-                        }
-                    }
-                    else{
-                        shinyalert("Result",
-                                   message,
-                                   type = "info"
-                        )
-                    }
+                    req(has.result$discharges == 2)
+                    proxy %>% hideGroup("clusters") %>% showGroup("discharges")
                 }
                 else{
-                    if (has.result$clusters == 0){
-                        message = "Кластеры не найдены."
-                    }
-                    else if (has.result$clusters == 1){
-                        message = "Кластеры найдены, но статистически не значимы"
-                    }
-                    
-                    if (has.result$clusters == 2){
-                        buf = isolate(copy.map())
-                        for (i in seq_len(nrow(signif.result$clusters))) {
-                            reg.id = str_replace_all(str_split(signif.result$clusters[i,"Label"], "; "), " ", "")
-                            region = buf[which(buf@data$GID_1 %in% reg.id),]
-                            #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
-                            union.dis = surveillance::unionSpatialPolygons(region)
-                            proxy %>% removeShape("discharges") %>% 
-                                addPolylines(
-                                    data = union.dis,
-                                    layerId = "clusters",
-                                    color = "blue",
-                                    weight = 5,
-                                    opacity = 1
-                                )
-                        }
-                    }
-                    else{
-                        shinyalert("Result",
-                                   message,
-                                   type = "info"
-                        )
-                    }
+                    req(has.result$clusters == 2)
+                    proxy %>% hideGroup("discharges") %>% showGroup("clusters")
                 }
-
             })
             
             
@@ -530,11 +472,19 @@ Main.Server <- function(id) {
                              ignoreNULL = T,
                              ignoreInit = T,
             {
+                req(!is.null(input$map_shape_click$id))
                 isolate.copy = isolate(copy.map())
                 first.time = as.numeric(isolate.copy@data[,obs.columns$first])
                 second.time = as.numeric(isolate.copy@data[,obs.columns$second])
 
                 i = which(isolate.copy@data$GID_1 %in% input$map_shape_click)
+                print("-----------------------------------------------------")
+                print("Map click")
+                print(input$map_shape_click)
+                print(isolate.copy@data$GID_1)
+                print(i)
+                print(first.time[i])
+                print(second.time[i])
 
                 if(is.na(first.time[i]) || is.na(second.time[i]) ||
                    is.nan(first.time[i]) || is.nan(second.time[i]) ||
@@ -548,8 +498,7 @@ Main.Server <- function(id) {
 
                 row(which(isolate.copy@data$GID_1 %in% ev$id))
 
-                print("-----------------------------------------------------")
-                print("Map click")
+                
                 print(paste("Row =",row(),"Region =",isolate.copy@data$NAME_1[row()]))
                 print(paste("First =",isolate.copy@data[row(),obs.columns$first],"Second =",isolate.copy@data[row(),obs.columns$second]))
                 print("-----------------------------------------------------")
@@ -742,6 +691,19 @@ Main.Server <- function(id) {
                             print(signif.dis)
                             if(nrow(signif.dis) > 0){
                                 has.result$discharges = 2
+                                for (i in signif.dis$ID) {
+                                    region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
+                                    #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                                    union.dis = surveillance::unionSpatialPolygons(region)
+                                    proxy %>%
+                                        addPolylines(
+                                            data = union.dis,
+                                            group = "discharges",
+                                            color = "blue",
+                                            weight = 5,
+                                            opacity = 1
+                                        )
+                                }
                             }
                         }
                     }
@@ -788,12 +750,30 @@ Main.Server <- function(id) {
                                 print(signif.clust)
                                 if(nrow(signif.clust) > 0){
                                     has.result$clusters = 2
+                                    for (i in signif.clust$ID) {
+                                        region = buf[which(copy.map()@data$GID_1 %in% clusters[[i]]),]
+                                        #print(which(copy.map()@data$GID_1 %in% clusters[[i]]))
+                                        union.clust = surveillance::unionSpatialPolygons(region)
+                                        proxy %>%
+                                            addPolylines(
+                                                data = union.clust,
+                                                group = "clusters",
+                                                color = "black",
+                                                weight = 5,
+                                                opacity = 1
+                                            )
+                                    }
                                 }
                                 print("-----------------------------------------------------")
                             }
                         }
                 }
-                renderResult()
+                if(input$representation_map == "Разряжения"){
+                    proxy %>% hideGroup("clusters") %>% showGroup("discharges")
+                }
+                else{
+                    proxy %>% hideGroup("discharges") %>% showGroup("clusters")
+                }
                 enable("save_res")
             })
 
