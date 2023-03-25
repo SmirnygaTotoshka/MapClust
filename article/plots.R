@@ -56,3 +56,53 @@ annotations = list(
 fig = subplot(fig1,fig2,shareX = T, shareY = T) %>%  layout(annotations = annotations, title = 'ВИЧ РФ 2005 год')
 fig
 
+Rom = geodata::gadm(country="ROU", level = 1, path = "~/Documents/Pyat/test_art5/PM10_Rom")
+Rom = as(Rom,"Spatial")
+length(Rom@data$NAME_1)
+
+data = readxl::read_excel("~/Documents/Pyat/test_art5/PM10_Rom/Romania_PM10_processed (1).xlsx") %>% 
+    filter(!is.na(PM10)) %>% 
+    mutate(Judet = case_when(
+        Judet == "Arges" ~ "Argeș",
+        Judet == "Bacau" ~ "Bacău",
+        Judet == "Botosani" ~ "Botoșani",
+        Judet == "Braila" ~ "Brăila",
+        Judet == "Brasov" ~ "Brașov",
+        Judet == "Bucuresti" ~ "Bucharest",
+        Judet == "Buzau" ~ "Buzău",
+        Judet == "Calarasi" ~ "Călărași",
+        Judet == "Constanta" ~ "Constanța",
+        Judet == "Galati" ~ "Galați",
+        Judet == "Iasi" ~ "Iași",
+        Judet == "Judeţul Neamţ" ~ "Neamț",
+        Judet == "Mures" ~ "Mureș",
+        Judet == "Valcea" ~ "Vâlcea",
+        Judet == "Bistriţa-Năsăud" ~ "Bistrița-Năsăud",
+        Judet == "Maramureş" ~ "Maramureș",
+        Judet == "Timiş" ~ "Timiș",
+        TRUE ~ Judet
+    ))
+data = data %>%  group_by(City, Year, Judet) %>%
+    summarize(PM10 = mean(PM10, na.rm = TRUE)) %>%
+    ungroup()
+data %>% group_by(Year) %>% summarise(num_reg = n())
+y.2018 = data %>% filter(Year == 2018) %>% select(-c("City", "Year")) 
+y.2021 = data %>% filter(Year == 2021) %>% select(-c("City", "Year"))
+notin.2018 = data.frame(Judet = Rom@data$NAME_1[which(!Rom@data$NAME_1 %in% y.2018$Judet)],
+                        PM10 = NA)
+y.2018 = rbind(y.2018, notin.2018)
+colnames(y.2018) = c("Judet","PM10.2018")
+notin.2021 = data.frame(Judet = Rom@data$NAME_1[which(!Rom@data$NAME_1 %in% y.2021$Judet)],
+                        PM10 = NA)
+y.2021 = rbind(y.2021, notin.2021)
+colnames(y.2021) = c("Judet","PM10.2021")
+
+Rom@data = inner_join(Rom@data,y.2018, by = c("NAME_1" = "Judet"))
+Rom@data = inner_join(Rom@data,y.2021, by = c("NAME_1" = "Judet"))
+
+intersect(unique(data$Judet), Rom@data$NAME_1)
+cbind(Rom@data$NAME_1,c(sort(unique(data$Judet)),rep(NA, length(Rom@data$NAME_1)-length(unique(data$Judet)))))
+length(unique(data$Judet))
+
+
+rgdal::writeOGR(Rom, "~/Documents/Pyat/test_art5/PM10_Rom/", layer = "Romania", driver = "ESRI Shapefile", layer_options = "ENCODING=UTF-8")

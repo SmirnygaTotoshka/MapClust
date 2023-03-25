@@ -12,7 +12,7 @@ Main.UI = function(id, label = "Критерий"){
                                      selectInput(crit("representation_map"),"Режим отображения результатов",choices = c("Разряжения","Кластеры"),selected = "Кластеры")
                                      #actionButton(crit("check.alpha"),"Проверить ошибку первого рода")
                                      ),
-                         sliderInput(crit("alpha"), "Ошибка первого рода", min = 0.001,max = 0.1, step = 0.001, value = 0.05),
+                         sliderInput(crit("alpha"), "Ошибка первого рода", min = 0.01,max = 0.1, step = 0.001, value = 0.05),
                          hr(),
                          textOutput(crit("dif.print")),
                          hr(),

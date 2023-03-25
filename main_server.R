@@ -7,6 +7,7 @@ library(igraph)
 library(surveillance)
 library(sf)
 library(stringr)
+library(dplyr)
 Main.Server <- function(id) {
     moduleServer(
         id,
@@ -238,9 +239,9 @@ Main.Server <- function(id) {
             
             
             observe({
-                toggleState("clearHighlight", row() != 0 || (!is.null(result$discharges) || !is.null(result$clusters)))
-                toggleState("save_res",!is.null(result$discharges) || !is.null(result$clusters))
-                toggleState("do.clust", !is.null(map.data()) && !is.null(monte.carlo$params))
+                toggleState("clearHighlight", row() != 0 | (!is.null(result$discharges) | !is.null(result$clusters)))
+                toggleState("save_res",!is.null(result$discharges) | !is.null(result$clusters))
+                toggleState("do.clust", !is.null(map.data()) & !is.null(monte.carlo$params))
                 toggle("first.cases", condition = !is.null(click.list()))
                 toggle("second.cases", condition = !is.null(click.list()))
             })
@@ -363,13 +364,33 @@ Main.Server <- function(id) {
             })
             
             observeEvent(input$representation_map,{
-                
+                req(has.result$discharges > -1 | has.result$clusters > -1)
+                if(has.result$discharges == 0 & has.result$clusters == 0){
+                    message = "Разряжения и кластеры не найдены."
+                }
+                else if(has.result$discharges == 1 | has.result$clusters == 1){
+                    insertion = ifelse(has.result$discharges == 1 & has.result$clusters == 1, "Разряжения и кластеры",
+                                       ifelse(has.result$discharges == 1, "Разряжения", "Кластеры"))
+                    message = paste(insertion,"найдены, но статистически не значимы")
+                }
                 if(input$representation_map == "Разряжения"){
-                    req(has.result$discharges == 2)
+                    if(has.result$discharges != 2){
+                        shinyalert("Result",
+                                   message,
+                                   type = "info"
+                        )
+                        req(has.result$discharges == 2)
+                    }
                     proxy %>% hideGroup("clusters") %>% showGroup("discharges")
                 }
                 else{
-                    req(has.result$clusters == 2)
+                    if(has.result$clusters != 2){
+                        shinyalert("Result",
+                                   message,
+                                   type = "info"
+                        )
+                        req(has.result$clusters == 2)
+                    }
                     proxy %>% hideGroup("discharges") %>% showGroup("clusters")
                 }
             })
@@ -424,13 +445,13 @@ Main.Server <- function(id) {
                 {copy.map()@data[,obs.columns$first]; copy.map()@data[,obs.columns$second]},
                 {
                     data = isolate(copy.map())
-                    if(!is.numeric(data@data[,obs.columns$first]) ||
+                    if(!is.numeric(data@data[,obs.columns$first]) |
                         !is.numeric(data@data[,obs.columns$second])){
                         shinyalert("Error",
                                    paste("Выбран нечисловой параметр для показа"),
                                    type = "error"
                         )
-                        req(!is.numeric(data@data[,obs.columns$first]) ||
+                        req(!is.numeric(data@data[,obs.columns$first]) |
                             !is.numeric(data@data[,obs.columns$second]))#silent exit
                     }
                     else{
@@ -486,9 +507,9 @@ Main.Server <- function(id) {
                 print(first.time[i])
                 print(second.time[i])
 
-                if(is.na(first.time[i]) || is.na(second.time[i]) ||
-                   is.nan(first.time[i]) || is.nan(second.time[i]) ||
-                   is.infinite(first.time[i]) || is.infinite(second.time[i])){
+                if(is.na(first.time[i]) | is.na(second.time[i]) |
+                   is.nan(first.time[i]) | is.nan(second.time[i]) |
+                   is.infinite(first.time[i]) | is.infinite(second.time[i])){
                     req(input$changeableNA)
                 }
 
@@ -550,7 +571,7 @@ Main.Server <- function(id) {
                 req(!is.null(monte.carlo$params))
                 p.down = isolate(monte.carlo$params)[1,"Probabilities"]
                 p.up = isolate(monte.carlo$params)[2,"Probabilities"]
-                if(p.down > 0 && p.down < 1)
+                if(p.down > 0 & p.down < 1)
                 {
                     sim.down = as.data.frame(isolate(monte.carlo$sim.down))
 
@@ -565,7 +586,7 @@ Main.Server <- function(id) {
                     print(paste("Alpha = ",a1,"+",a2,";","N.crit =",n.crit))
                     a.uni = a1 / (n.crit - 1)
                     f.cr = function(s.cr,size,e.n){return(pchisq(s.cr,df = 2 * size) - (1 - a.uni / e.n))}
-                    tol = 0.0001
+                    tol = 0.00001
                     
                     for (j in 1:nrow(sim.down)) {
                         if(sim.down[j,"Size"] <= n.crit){
@@ -590,7 +611,7 @@ Main.Server <- function(id) {
                     
                 }
                 
-                if(p.up > 0 && p.up < 1){
+                if(p.up > 0 & p.up < 1){
                     sim.up = as.data.frame(isolate(monte.carlo$sim.up))
 
                     a1 = input$alpha/ 2
@@ -603,7 +624,7 @@ Main.Server <- function(id) {
                     print(paste("Alpha = ",a1,"+",a2,";","N.crit =",n.crit))
                     a.uni = a1 / (n.crit - 1)
                     f.cr = function(s.cr,size,e.n){return(pchisq(s.cr,df = 2 * size) - (1 - a.uni / e.n))}
-                    tol = 0.0001
+                    tol = 0.00001
                     
                     for (j in 1:nrow(sim.up)) {
                         if(sim.up[j,"Size"] <= n.crit){
@@ -651,7 +672,7 @@ Main.Server <- function(id) {
                 adj.mat = as.matrix(isolate(monte.carlo$adj.mat))
                 print("-----------------------------------------------------")
                 print(paste("Probability limits = [",p.down,";",p.up,"]"))
-                if(p.down > 0 && p.down < 1)
+                if(p.down > 0 & p.down < 1)
                 {
                     print("Search discharges")
 
@@ -685,7 +706,7 @@ Main.Server <- function(id) {
                             print("Data discharges")
                             print(data.discharges)
                             n.crit = sim.down$Size[which.min(sim.down$distToCrit)]
-                            signif.dis = data.discharges[data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.crit,]
+                            signif.dis = data.discharges %>% filter(data.discharges$N >= n.crit | data.discharges$S >= data.discharges$S.crit)
                             signif.result$discharges = signif.dis
                             print("Significant discharges")
                             print(signif.dis)
@@ -710,7 +731,7 @@ Main.Server <- function(id) {
                     print("-----------------------------------------------------")
                     }
 
-                if(p.up > 0 && p.up < 1)
+                if(p.up > 0 & p.up < 1)
                 {
                         print("Search clusters")
                         
@@ -744,7 +765,7 @@ Main.Server <- function(id) {
                                 print("Data clusters")
                                 print(data.clusters)
                                 n.crit = sim.up$Size[which.min(sim.up$distToCrit)]
-                                signif.clust = data.clusters[data.clusters$N >= n.crit | data.clusters$S >= data.clusters$S.crit,]
+                                signif.clust = data.clusters %>% filter(data.clusters$N >= n.crit | data.clusters$S >= data.clusters$S.crit)
                                 signif.result$clusters = signif.clust
                                 print("Significant clusters")
                                 print(signif.clust)
@@ -768,11 +789,33 @@ Main.Server <- function(id) {
                             }
                         }
                 }
+                message = ""
+                if(has.result$discharges == 0 & has.result$clusters == 0){
+                    message = "Разряжения и кластеры не найдены."
+                }
+                else if(has.result$discharges == 1 | has.result$clusters == 1){
+                    insertion = ifelse(has.result$discharges == 1 & has.result$clusters == 1, "Разряжения и кластеры",
+                                       ifelse(has.result$discharges == 1, "Разряжения", "Кластеры"))
+                    message = paste(insertion,"найдены, но статистически не значимы")
+                }
+                
                 if(input$representation_map == "Разряжения"){
                     proxy %>% hideGroup("clusters") %>% showGroup("discharges")
+                    if(has.result$discharges != 2){
+                        shinyalert("Result",
+                                   message,
+                                   type = "info"
+                        )
+                    }
                 }
                 else{
                     proxy %>% hideGroup("discharges") %>% showGroup("clusters")
+                    if(has.result$clusters != 2){
+                        shinyalert("Result",
+                                   message,
+                                   type = "info"
+                        )
+                    }
                 }
                 enable("save_res")
             })
