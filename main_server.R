@@ -458,7 +458,7 @@ Main.Server <- function(id) {
                       first.time = as.numeric(data@data[,obs.columns$first])
                       second.time = as.numeric(data@data[,obs.columns$second])
                                          
-                      data@data$X = (first.time - second.time) / (sqrt(first.time + second.time))
+                      data@data$X = (second.time - first.time) / (sqrt(first.time + second.time))
                       data@data$P = pnorm(data@data$X)
                       print(input$representation)
                       if(input$representation == "Разница")
