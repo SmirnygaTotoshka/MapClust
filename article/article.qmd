@@ -4,7 +4,7 @@ author: "Смирнов Антон Сергеевич^1^,Захаров Олег
 toc: true
 toc-depth: 3
 bibliography: references.bib
-csl: gost2.csl
+csl: gost-num-appear.csl
 tbl-cap-location: top
 toc-title: "Оглавление"
 fontsize: 14pt
