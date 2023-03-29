@@ -106,3 +106,42 @@ length(unique(data$Judet))
 
 
 rgdal::writeOGR(Rom, "~/Documents/Pyat/test_art5/PM10_Rom/", layer = "Romania", driver = "ESRI Shapefile", layer_options = "ENCODING=UTF-8")
+
+
+
+Ind = geodata::gadm(country="IND", level = 1, path = "~/Documents/Pyat/test_art5/IND_Fire/")
+Ind = as(Ind,"Spatial")
+
+data.ind = read.csv("~/Documents/Pyat/test_art5/IND_Fire/datafile.csv")
+colnames(data.ind) = c("States", "Y10_11", "Y09_10","Y08_09")
+length(intersect(data.ind$States, Ind@data$NAME_1))
+length(Ind@data$NAME_1)
+Uttarakhand = data.ind %>% filter(States == "Uttarakhand")
+Arunachal = data.ind %>% filter(States == "Arunachal Pradesh")
+Himachal = data.ind %>% filter(States == "Himachal Pradesh")
+data.ind = bind_rows(data.ind, Uttarakhand)
+data.ind = bind_rows(data.ind, Uttarakhand)
+data.ind = bind_rows(data.ind, Arunachal)
+data.ind = bind_rows(data.ind, Himachal)
+data.ind = bind_rows(data.ind, Himachal)
+data1 = data.ind %>% 
+    mutate(States = case_when(
+        States == "Tamil nadu" ~ "Tamil Nadu",
+        States == "Orissa" ~ "Odisha",
+        States == "Delhi" ~ "NCT of Delhi",
+        States == "Dadra and Nagar haveli" ~ "Dadra and Nagar Haveli",
+        States == "Chhatisgarh" ~ "Chhattisgarh",
+        TRUE ~ States
+    ))
+data1 = rbind(data1, c("Telangana",NA,NA,NA))
+cbind(Ind@data$NAME_1,c(sort(data1$States),rep(NA, length(Ind@data$NAME_1)-length(data1$States))))
+setdiff(data1$States,Ind@data$NAME_1)
+
+data1 = data1[order(sort(data1$States)),]
+data1[,2] = as.numeric(data1[,2])
+data1[,3] = as.numeric(data1[,3])
+data1[,4] = as.numeric(data1[,4])
+
+Ind@data = cbind(Ind@data,data1[,-1])
+
+rgdal::writeOGR(Ind, "~/Documents/Pyat/test_art5/IND_Fire/",layer = "India", driver = "ESRI Shapefile", layer_options = "ENCODING=UTF-8")
